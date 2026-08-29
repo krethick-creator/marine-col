@@ -1,7 +1,7 @@
 import { env } from '../../config/env'
 import type { WeatherProvider } from './WeatherProvider'
 import { MockWeatherProvider } from './MockWeatherProvider'
-// Phase 6: import { OpenMeteoWeatherProvider } from './OpenMeteoWeatherProvider'
+import { OpenMeteoWeatherProvider } from './OpenMeteoWeatherProvider'
 
 let instance: WeatherProvider | null = null
 
@@ -16,9 +16,8 @@ export function getWeatherProvider(): WeatherProvider {
       instance = new MockWeatherProvider()
       console.log('[Weather] Using MockWeatherProvider (DEMO DATA)')
     } else {
-      // Phase 6: instance = new OpenMeteoWeatherProvider()
-      console.warn('[Weather] Real provider not yet implemented — falling back to mock')
-      instance = new MockWeatherProvider()
+      instance = new OpenMeteoWeatherProvider()
+      console.log('[Weather] Using OpenMeteoWeatherProvider (REAL DATA)')
     }
   }
   return instance

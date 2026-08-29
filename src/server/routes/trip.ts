@@ -24,13 +24,13 @@ router.get('/plan', validate(TripSchema, 'query'), asyncHandler(async (req, res)
   const forecast = await weather.getForecast({ lat, lon }, days)
 
   const dayPlans: DayPlan[] = forecast.daily.slice(0, days).map((day, i) => {
-    const isBadDay   = day.waveHeightMax > 2.5 || day.windSpeedMax > 30
-    const isCautionDay = !isBadDay && (day.waveHeightMax > 1.5 || day.windSpeedMax > 20)
+    const isBadDay   = day.waveHeightMax === null || day.waveHeightMax > 2.5 || day.windSpeedMax > 30
+    const isCautionDay = !isBadDay && ((day.waveHeightMax ?? 0) > 1.5 || day.windSpeedMax > 20)
     const dayStatus: StatusLevel = isBadDay ? 'NO_GO' : isCautionDay ? 'CAUTION' : 'GO'
 
     const morning: TimeSlot   = { label: 'Morning',   status: dayStatus === 'NO_GO' ? 'NO_GO' : 'GO',      notes: isBadDay ? 'Conditions unsafe.' : 'Depart early for best window.' }
-    const afternoon: TimeSlot = { label: 'Afternoon', status: isCautionDay ? 'CAUTION' : dayStatus,         notes: isCautionDay ? 'Conditions worsening — return by midday.' : isBadDay ? 'Avoid.' : 'Safe conditions continue.' }
-    const evening: TimeSlot   = { label: 'Evening',   status: dayStatus === 'GO' ? 'GO' : 'NO_GO',          notes: isBadDay ? 'Do not attempt.' : 'Return before sunset.' }
+    const afternoon: TimeSlot = { label: 'Afternoon', status: isCautionDay ? 'NO_GO' : dayStatus,          notes: isCautionDay ? 'Weather worsening.' : 'Safe conditions.' }
+    const evening: TimeSlot   = { label: 'Evening',   status: dayStatus === 'NO_GO' ? 'NO_GO' : 'CAUTION', notes: 'Return before dark.' }
 
     return {
       date: day.date,
@@ -41,9 +41,9 @@ router.get('/plan', validate(TripSchema, 'query'), asyncHandler(async (req, res)
       evening,
       recommendedDepartureTime: dayStatus !== 'NO_GO' ? '06:30 AM' : undefined,
       recommendedReturnTime: isCautionDay ? '11:30 AM' : dayStatus === 'GO' ? '03:00 PM' : undefined,
-      weatherSummary: `Wind ${day.windSpeedMax} km/h · Waves ${day.waveHeightMax} m · ${day.condition}`,
+      weatherSummary: `Wind ${day.windSpeedMax} km/h • Waves ${day.waveHeightMax === null ? 'UNKNOWN' : day.waveHeightMax + ' m'} • ${day.condition}`,
       warnings: isBadDay
-        ? ['DO NOT GO — conditions are dangerous']
+        ? ['DO NOT GO — conditions are dangerous or unknown']
         : isCautionDay
           ? [`Return before 11:30 AM — conditions worsen after that`]
           : [],
