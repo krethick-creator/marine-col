@@ -17,8 +17,11 @@ interface AppStore {
   toggleOfflineMode: () => void
 
   // Weather (sidebar widget)
-  currentWeather: WeatherSnapshot
-  setCurrentWeather: (w: WeatherSnapshot) => void
+  currentWeather: WeatherSnapshot | null
+  weatherLoading: boolean
+  weatherError: string | null
+  setCurrentWeather: (w: WeatherSnapshot | null) => void
+  fetchWeather: (lat: number, lon: number) => Promise<void>
 
   // Alerts badge count
   alerts: Alert[]
@@ -26,6 +29,8 @@ interface AppStore {
   unreadAlertCount: number
   clearAlertBadge: () => void
 }
+
+import { getCurrentWeather } from '../services/api/weatherService'
 
 export const useAppStore = create<AppStore>((set) => ({
   activePage: 'home',
@@ -50,8 +55,19 @@ export const useAppStore = create<AppStore>((set) => ({
       user: { ...s.user, offlineMode: !s.offlineMode },
     })),
 
-  currentWeather: mockWeather,
+  currentWeather: null,
+  weatherLoading: false,
+  weatherError: null,
   setCurrentWeather: (w) => set({ currentWeather: w }),
+  fetchWeather: async (lat: number, lon: number) => {
+    set({ weatherLoading: true, weatherError: null })
+    try {
+      const data = await getCurrentWeather(lat, lon)
+      set({ currentWeather: data, weatherLoading: false })
+    } catch (err: any) {
+      set({ weatherError: err.message, weatherLoading: false })
+    }
+  },
 
   alerts: mockAlerts,
   setAlerts: (a) => set({ alerts: a, unreadAlertCount: a.length }),

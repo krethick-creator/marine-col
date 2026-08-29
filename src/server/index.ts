@@ -4,6 +4,7 @@ import helmet from 'helmet'
 import morgan from 'morgan'
 import dotenv from 'dotenv'
 
+import { chatRoutes } from './routes/chat'
 import authRoutes from './routes/auth'
 import alertsRoutes from './routes/alerts'
 import boundariesRoutes from './routes/boundaries'
@@ -26,6 +27,7 @@ app.use(helmet())
 app.use(morgan('dev'))
 app.use(express.json())
 
+app.use('/api/chat', chatRoutes)
 app.use('/api/auth', authRoutes)
 app.use('/api/alerts', alertsRoutes)
 app.use('/api/boundaries', boundariesRoutes)

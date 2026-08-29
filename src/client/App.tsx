@@ -49,12 +49,28 @@ const PublicRoute = () => {
   );
 };
 
+import { useAppStore } from './store'
+
 export default function App() {
   const checkAuth = useAuthStore(state => state.clearError); // Fix infinite loop
+  const { user, fetchWeather } = useAppStore();
 
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
+
+  // Fetch weather on mount and every 15 minutes
+  useEffect(() => {
+    if (user?.location?.lat && user?.location?.lon) {
+      const lat = user.location.lat;
+      const lon = user.location.lon;
+      fetchWeather(lat, lon);
+      const interval = setInterval(() => {
+        fetchWeather(lat, lon);
+      }, 15 * 60 * 1000);
+      return () => clearInterval(interval);
+    }
+  }, [user?.location?.lat, user?.location?.lon, fetchWeather]);
 
   return (
     <BrowserRouter>

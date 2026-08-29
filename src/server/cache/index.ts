@@ -19,10 +19,20 @@ export const redis = new Redis(redisUrl, {
   maxRetriesPerRequest: null,
 });
 
-redis.on('error', (err) => {
-  console.error('Redis connection error:', err);
+let hasLoggedRedisError = false;
+
+redis.on('error', (err: any) => {
+  if (err?.code === 'ECONNREFUSED' || err?.message?.includes('ECONNREFUSED')) {
+    if (!hasLoggedRedisError) {
+      console.warn('⚠️ [Redis] Connection refused (is Redis running?). Caching will safely fall back to direct network calls.');
+      hasLoggedRedisError = true;
+    }
+  } else {
+    console.error('[Redis] error:', err.message);
+  }
 });
 
 redis.on('connect', () => {
-  console.log('Connected to Redis');
+  hasLoggedRedisError = false;
+  console.log('✅ [Redis] Connected successfully');
 });

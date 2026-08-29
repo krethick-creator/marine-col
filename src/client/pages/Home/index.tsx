@@ -6,7 +6,7 @@ import {
   mockAgentSteps,
   getMockResponseForQuery,
 } from '../../services/mockProviders/mockData'
-import { useChatStore } from '../../store'
+import { useChatStore, useAppStore } from '../../store'
 import type { ChatMessage, AgentTraceStep } from '../../types'
 
 // ─── Suggestion chips ─────────────────────────────────────────────────
@@ -47,16 +47,24 @@ export default function HomePage() {
     }
   }
 
-  // ─── Simulate multi-agent processing ──────────────────────────────
+  const { user } = useAppStore() // Assuming this is where location is stored
+
+  // --- Real agent processing ---
   const simulateAgents = useCallback(async (query: string) => {
+    // 1. Initial UI setup (trace placeholder)
+    const traceId = `trace-${Date.now()}`
+    
+    // We start with our agent list from mockAgentSteps just to have labels,
+    // but we will mark them as pending/active as the stream goes.
     const steps: AgentTraceStep[] = mockAgentSteps.map((s) => ({
       ...s,
       status: 'pending' as const,
     }))
+    
     setAgentSteps(steps)
     setLocalAgentIndex(0)
+    setAgentIndex(0)
 
-    const traceId = `trace-${Date.now()}`
     addMessage({
       id: traceId,
       role: 'assistant',
@@ -65,31 +73,93 @@ export default function HomePage() {
       agentTrace: steps,
     })
 
-    for (let i = 0; i < steps.length; i++) {
-      setLocalAgentIndex(i)
-      setAgentIndex(i)
-      await new Promise((r) => setTimeout(r, AGENT_STEP_DELAY_MS))
-    }
+    // 2. Map backend nodes to UI agent indices
+    const nodeMap: Record<string, number> = {
+      'plannerAgent': 0,
+      'dataDiscoveryAgent': 1,
+      'weatherAgent': 2,
+      'oceanAgent': 3,
+      'geospatialAgent': 3,
+      'alertAgent': 4,
+      'satelliteAgent': 4,
+      'riskAgent': 5,
+      'routeAgent': 6,
+      'synthesisAgent': 7,
+    };
 
-    setLocalAgentIndex(steps.length)
-    setAgentIndex(steps.length)
+    let latestIndex = 0;
 
-    const { recommendation, answer } = getMockResponseForQuery(query)
+    const { streamChat } = await import('../../services/api/chatService');
+    
+    streamChat(
+      query,
+      user?.location,
+      (nodeName, executedSteps) => {
+        // Find which step this corresponds to
+        let targetIndex = nodeMap[nodeName];
+        if (targetIndex !== undefined) {
+          if (targetIndex < latestIndex) targetIndex = latestIndex;
+          latestIndex = targetIndex;
+          setLocalAgentIndex(targetIndex);
+          setAgentIndex(targetIndex);
+        }
+      },
+      (finalResponse, riskAssessment) => {
+        setLocalAgentIndex(steps.length);
+        setAgentIndex(steps.length);
+        
+        let formattedRecommendation = undefined;
+        
+        if (riskAssessment) {
+          // Normalize the format from the backend to match UI expectations
+          formattedRecommendation = {
+            level: riskAssessment.status, // GO, CAUTION, NO_GO
+            confidence: 'HIGH' as const,
+            summary: riskAssessment.summary || finalResponse,
+            reasoning: riskAssessment.reasoning || [],
+            evidence: [
+              { label: 'Wind Speed', value: riskAssessment.evidence?.windSpeed ? `${riskAssessment.evidence.windSpeed} km/h` : 'Unknown', icon: '💨' },
+              { label: 'Wave Height', value: riskAssessment.evidence?.waveHeight ? `${riskAssessment.evidence.waveHeight} m` : 'Unavailable', icon: '🌊' },
+            ],
+            dataFreshness: {
+              weather: 'Just now',
+              marine: 'Just now',
+              satellite: 'Just now',
+              updatedAt: new Date()
+            },
+            isMockData: false
+          }
+        }
 
-    addMessage({
-      id: `ans-${Date.now()}`,
-      role: 'assistant',
-      content: answer,
-      timestamp: new Date(),
-      recommendation,
-      isMockData: true,
-    })
+        addMessage({
+          id: `ans-${Date.now()}`,
+          role: 'assistant',
+          content: finalResponse,
+          timestamp: new Date(),
+          recommendation: formattedRecommendation,
+          isMockData: false,
+        });
 
-    setLoading(false)
-    setLocalAgentIndex(-1)
-    setAgentIndex(-1)
-    setAgentSteps([])
-  }, [addMessage, setLoading, setAgentIndex])
+        setLoading(false);
+        setLocalAgentIndex(-1);
+        setAgentIndex(-1);
+        setAgentSteps([]);
+      },
+      (err) => {
+        addMessage({
+          id: `ans-${Date.now()}`,
+          role: 'assistant',
+          content: `Sorry, I encountered an error: ${err}`,
+          timestamp: new Date(),
+          isMockData: false,
+        });
+        setLoading(false);
+        setLocalAgentIndex(-1);
+        setAgentIndex(-1);
+        setAgentSteps([]);
+      }
+    )
+  }, [addMessage, setLoading, setAgentIndex, user?.location])
 
   // ─── Submit handler ────────────────────────────────────────────────
   const handleSubmit = useCallback(async () => {

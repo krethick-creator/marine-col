@@ -20,9 +20,9 @@ export interface CurrentWeather {
   windDirection: string
   humidity: number
   visibility: number
-  waveHeight: number       // metres
-  swellPeriod: number      // seconds
-  seaState: string
+  waveHeight: number | null       // metres
+  swellPeriod: number | null      // seconds
+  seaState: string | null
   rainProbability: number  // 0–100
   lightningRisk: boolean
   location: string
@@ -34,7 +34,7 @@ export interface HourlyWeather {
   time: Date
   temperature: number
   windSpeed: number
-  waveHeight: number
+  waveHeight: number | null
   precipitation: number
   condition: string
 }
@@ -44,7 +44,7 @@ export interface DailyWeather {
   high: number
   low: number
   windSpeedMax: number
-  waveHeightMax: number
+  waveHeightMax: number | null
   condition: string
   status: StatusLevel
   safeWindow?: { start: string; end: string }
@@ -141,8 +141,8 @@ export interface Advisory {
 export interface RiskInputs {
   weather: {
     windSpeed: number
-    waveHeight: number
-    seaState: string
+    waveHeight: number | null
+    seaState: string | null
     rainProbability: number
     lightningRisk: boolean
     hourly: HourlyWeather[]

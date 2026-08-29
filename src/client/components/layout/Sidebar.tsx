@@ -21,7 +21,7 @@ const navItems = [
 ]
 
 export default function Sidebar() {
-  const { currentWeather, offlineMode, toggleOfflineMode, unreadAlertCount } = useAppStore()
+  const { currentWeather, weatherLoading, weatherError, offlineMode, toggleOfflineMode, unreadAlertCount } = useAppStore()
   const { user } = useAuthStore()
   const location = useLocation()
 
@@ -70,21 +70,31 @@ export default function Sidebar() {
       {/* Bottom section */}
       <div className="sidebar-bottom">
         {/* Weather mini card */}
-        <div className="weather-mini-card">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 24 }}>🌤️</span>
-            <div>
-              <div className="temp">
-                {currentWeather.temperature}°C
+        <div className="weather-mini-card" style={{ minHeight: 64 }}>
+          {weatherLoading && !currentWeather ? (
+            <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>Loading...</div>
+          ) : weatherError ? (
+            <div style={{ fontSize: 12, color: 'var(--status-nogo)' }}>Weather unavailable</div>
+          ) : currentWeather ? (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 24 }}>🌤️</span>
+                <div>
+                  <div className="temp">
+                    {currentWeather.temperature}°C
+                  </div>
+                  <div className="loc">
+                    {currentWeather.condition}
+                  </div>
+                </div>
               </div>
-              <div className="loc">
-                {currentWeather.condition}
+              <div className="loc" style={{ marginTop: 6, fontWeight: 500 }}>
+                {currentWeather.location}
               </div>
-            </div>
-          </div>
-          <div className="loc" style={{ marginTop: 6, fontWeight: 500 }}>
-            {currentWeather.location}
-          </div>
+            </>
+          ) : (
+            <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>No data</div>
+          )}
         </div>
 
         {/* Offline mode toggle */}

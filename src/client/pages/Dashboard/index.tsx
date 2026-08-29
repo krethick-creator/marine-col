@@ -1,5 +1,6 @@
 import { useAuthStore } from '../../store/authStore';
 import { MapPin, Navigation, Clock, ShieldAlert, Activity } from 'lucide-react';
+import WeatherCard from '../../components/dashboard/WeatherCard';
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
@@ -46,6 +47,9 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+
+        {/* Independent Weather Card */}
+        <WeatherCard />
 
         {/* Recent Activity */}
         <div className="glass-card" style={{ padding: 24 }}>
