@@ -10,6 +10,7 @@ import alertsRoutes from './routes/alerts'
 import boundariesRoutes from './routes/boundaries'
 import communityRoutes from './routes/community'
 import fishingRoutes from './routes/fishing'
+import geospatialRoutes from './routes/geospatial'
 import oceanRoutes from './routes/ocean'
 import sosRoutes from './routes/sos'
 import tripRoutes from './routes/trip'
@@ -33,6 +34,7 @@ app.use('/api/alerts', alertsRoutes)
 app.use('/api/boundaries', boundariesRoutes)
 app.use('/api/community', communityRoutes)
 app.use('/api/fishing', fishingRoutes)
+app.use('/api/geospatial', geospatialRoutes)
 app.use('/api/ocean', oceanRoutes)
 app.use('/api/sos', sosRoutes)
 app.use('/api/trip', tripRoutes)

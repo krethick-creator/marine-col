@@ -5,5 +5,12 @@
     "email": "krethick3232@gmail.com",
     "password": "slrk3232",
     "role": "FISHERMAN"
+  },
+  {
+    "id": "1a0049be-c7a5-4eae-bf07-a376978fdb65",
+    "name": "Padma Neela P",
+    "email": "padmaneela.palanikumar@gmail.com",
+    "password": "Padma@2007",
+    "role": "FISHERMAN"
   }
 ]
