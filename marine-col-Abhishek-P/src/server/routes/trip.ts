@@ -4,7 +4,9 @@ import { v4 as uuidv4 } from 'uuid'
 import { asyncHandler } from '../middleware/errorHandler'
 import { validate } from '../middleware/validate'
 import { getWeatherProvider } from '../services/weather'
-import type { ApiSuccess, TripPlan, DayPlan, StatusLevel, TimeSlot } from '../types'
+import { getSafeRoute } from '../agents/routeAgent'
+import type { ApiSuccess, TripPlan, DayPlan, StatusLevel, TimeSlot, SafeRouteResult } from '../types'
+
 
 const router = Router()
 
@@ -77,4 +79,35 @@ router.get('/plan', validate(TripSchema, 'query'), asyncHandler(async (req, res)
   res.json(body)
 }))
 
+const SafeRouteSchema = z.object({
+  originLat:     z.coerce.number().min(-90).max(90),
+  originLon:     z.coerce.number().min(-180).max(180),
+  destLat:       z.coerce.number().min(-90).max(90),
+  destLon:       z.coerce.number().min(-180).max(180),
+  boatKey:       z.string().optional().default('mechanized'),
+  departureTime: z.string().optional(),
+  cycloneActive: z.preprocess((val) => val === 'true' || val === true, z.boolean()).optional().default(false),
+})
+
+// GET /api/trip/safe-route?originLat=13.08&originLon=80.27&destLat=13.25&destLon=80.45&boatKey=small
+router.get('/safe-route', validate(SafeRouteSchema, 'query'), asyncHandler(async (req, res) => {
+  const { originLat, originLon, destLat, destLon, boatKey, departureTime, cycloneActive } = req.query as unknown as z.infer<typeof SafeRouteSchema>
+  
+  const depDate = departureTime && !isNaN(new Date(departureTime).getTime()) ? new Date(departureTime) : new Date()
+  const result = await getSafeRoute(originLat, originLon, destLat, destLon, {
+    boatKey,
+    departureTime: depDate,
+    cycloneActive,
+  })
+
+  const body: ApiSuccess<SafeRouteResult> = {
+    ok: true,
+    data: result,
+    isMockData: false,
+    timestamp: new Date().toISOString(),
+  }
+  res.json(body)
+}))
+
 export default router
+

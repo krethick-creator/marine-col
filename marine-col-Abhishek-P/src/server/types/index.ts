@@ -339,3 +339,15 @@ export interface ApiError {
 }
 
 export type ApiResponse<T> = ApiSuccess<T> | ApiError
+
+// ─── Route Agent Types ────────────────────────────────────────────────
+export type {
+  BoatProfile,
+  Zone,
+  SafeRouteResult,
+  WaypointTimelineItem,
+  RouteAgentOptions,
+  GridNode,
+  NodeRisk,
+} from '../agents/routeAgent'
+
