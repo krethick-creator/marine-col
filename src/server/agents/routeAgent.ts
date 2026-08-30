@@ -230,6 +230,25 @@ function isValidHourlyPayload(data: unknown): data is HourlyForecastBlock {
   return Array.isArray(h.time) && h.time.length > 0;
 }
 
+function createFallbackMarineData(weatherData: any): any {
+  if (Array.isArray(weatherData)) {
+    return weatherData.map(wBlock => ({
+      hourly: {
+        time: wBlock?.hourly?.time || [],
+        wave_height: new Array((wBlock?.hourly?.time || []).length).fill(null)
+      }
+    }));
+  }
+  
+  const times = weatherData?.hourly?.time || [];
+  return {
+    hourly: {
+      time: times,
+      wave_height: new Array(times.length).fill(null)
+    }
+  };
+}
+
 /**
  * Retrieves weather and marine forecasts for all grid nodes using Open-Meteo APIs.
  * Uses batched coordinate requests to minimize HTTP overhead.
@@ -270,13 +289,6 @@ export async function defaultFetchGridForecast(
     );
   }
 
-  if (!marineRes.ok) {
-    const errText = await marineRes.text().catch(() => "");
-    throw new Error(
-      `Open-Meteo Marine API HTTP error ${marineRes.status}: ${errText.slice(0, 200)}`
-    );
-  }
-
   if (!weatherRes.ok) {
     const errText = await weatherRes.text().catch(() => "");
     throw new Error(
@@ -284,19 +296,24 @@ export async function defaultFetchGridForecast(
     );
   }
 
-  let marineData: unknown;
   let weatherData: unknown;
-
-  try {
-    marineData = await marineRes.json();
-  } catch (err) {
-    throw new Error(`Failed to parse Open-Meteo Marine API JSON response: ${err}`);
-  }
-
   try {
     weatherData = await weatherRes.json();
   } catch (err) {
     throw new Error(`Failed to parse Open-Meteo Weather API JSON response: ${err}`);
+  }
+
+  let marineData: unknown;
+  if (marineRes.ok) {
+    try {
+      marineData = await marineRes.json();
+    } catch (err) {
+      console.warn(`Failed to parse Open-Meteo Marine API JSON response: ${err}. Using fallback.`);
+      marineData = createFallbackMarineData(weatherData);
+    }
+  } else {
+    console.warn(`Open-Meteo Marine API failed with status ${marineRes.status}. Using fallback.`);
+    marineData = createFallbackMarineData(weatherData);
   }
 
   const marineBlocks = Array.isArray(marineData) ? marineData : [marineData];

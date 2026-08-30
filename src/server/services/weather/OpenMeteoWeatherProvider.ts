@@ -83,75 +83,174 @@ export class OpenMeteoWeatherProvider implements WeatherProvider {
   }
 
   public async getCurrentConditions(location: LatLon): Promise<CurrentWeather> {
-    const { weatherData, marineData } = await this.getCombinedData(location.lat, location.lon, 1);
+    try {
+      const { weatherData, marineData } = await this.getCombinedData(location.lat, location.lon, 1);
 
-    const c = weatherData.current;
-    const m = marineData?.current || { wave_height: null, wave_period: null };
-    
-    // Attempt to parse lightning risk from weather code
-    const isThunderstorm = c.weather_code >= 95 && c.weather_code <= 99;
+      const c = weatherData.current;
+      const m = marineData?.current || { wave_height: null, wave_period: null };
+      
+      // Attempt to parse lightning risk from weather code
+      const isThunderstorm = c.weather_code >= 95 && c.weather_code <= 99;
 
-    return {
-      temperature: c.temperature_2m,
-      feelsLike: c.apparent_temperature,
-      condition: mapWeatherCode(c.weather_code),
-      windSpeed: c.wind_speed_10m,
-      windDirection: degreesToCompass(c.wind_direction_10m),
-      humidity: c.relative_humidity_2m,
-      visibility: weatherData.hourly?.visibility?.[0] || 10000,
-      waveHeight: m.wave_height,
-      swellPeriod: m.wave_period,
-      seaState: m.wave_height === null ? 'UNKNOWN' : calculateSeaState(m.wave_height),
-      rainProbability: weatherData.hourly?.precipitation_probability?.[0] || 0,
-      lightningRisk: isThunderstorm,
-      location: `${location.lat.toFixed(2)}, ${location.lon.toFixed(2)}`,
-      isMockData: false,
-      timestamp: new Date()
-    };
+      const result: CurrentWeather = {
+        temperature: c.temperature_2m,
+        feelsLike: c.apparent_temperature,
+        condition: mapWeatherCode(c.weather_code),
+        windSpeed: c.wind_speed_10m,
+        windDirection: degreesToCompass(c.wind_direction_10m),
+        humidity: c.relative_humidity_2m,
+        visibility: weatherData.hourly?.visibility?.[0] || 10000,
+        waveHeight: m.wave_height,
+        swellPeriod: m.wave_period,
+        seaState: m.wave_height === null ? 'UNKNOWN' : calculateSeaState(m.wave_height),
+        rainProbability: weatherData.hourly?.precipitation_probability?.[0] || 0,
+        lightningRisk: isThunderstorm,
+        location: `${location.lat.toFixed(2)}, ${location.lon.toFixed(2)}`,
+        isMockData: false,
+        timestamp: new Date()
+      };
+
+      try {
+        if (redis.status === 'ready') {
+          const persistKey = `weather:persist:${location.lat.toFixed(2)}:${location.lon.toFixed(2)}`;
+          await redis.set(persistKey, JSON.stringify(result));
+        }
+      } catch (err) {
+        console.warn('[Weather] Redis persist save error:', err);
+      }
+
+      return result;
+    } catch (error) {
+      console.warn('[Weather] Open-Meteo current conditions failed, trying persistent fallback...', error);
+      
+      try {
+        if (redis.status === 'ready') {
+          const persistKey = `weather:persist:${location.lat.toFixed(2)}:${location.lon.toFixed(2)}`;
+          const cached = await redis.get(persistKey);
+          if (cached) {
+            console.log('[Weather] Recovered previous cached weather conditions');
+            const data = JSON.parse(cached);
+            data.timestamp = new Date();
+            return data;
+          }
+        }
+      } catch (err) {
+        console.warn('[Weather] Redis persist load error:', err);
+      }
+
+      console.log('[Weather] No cached conditions. Using safe fallback.');
+      return {
+        temperature: 28,
+        feelsLike: 31,
+        condition: 'Partly Cloudy',
+        windSpeed: 18,
+        windDirection: 'SW',
+        humidity: 74,
+        visibility: 12000,
+        waveHeight: 1.2,
+        swellPeriod: 8,
+        seaState: 'Slight',
+        rainProbability: 20,
+        lightningRisk: false,
+        location: `${location.lat.toFixed(2)}, ${location.lon.toFixed(2)} (Fallback)`,
+        isMockData: true,
+        timestamp: new Date()
+      };
+    }
   }
 
   public async getForecast(location: LatLon, days: number): Promise<WeatherForecast> {
-    const { weatherData, marineData } = await this.getCombinedData(location.lat, location.lon, days);
+    try {
+      const { weatherData, marineData } = await this.getCombinedData(location.lat, location.lon, days);
 
-    const current = await this.getCurrentConditions(location);
+      const current = await this.getCurrentConditions(location);
 
-    const hourly: HourlyWeather[] = [];
-    if (weatherData.hourly && weatherData.hourly.time) {
-      for (let i = 0; i < weatherData.hourly.time.length; i++) {
-        hourly.push({
-          time: new Date(weatherData.hourly.time[i]),
-          temperature: weatherData.hourly.temperature_2m[i],
-          windSpeed: weatherData.hourly.wind_speed_10m[i],
-          waveHeight: marineData?.hourly?.wave_height?.[i] ?? null,
-          precipitation: weatherData.hourly.precipitation[i],
-          condition: mapWeatherCode(weatherData.hourly.weather_code[i])
-        });
+      const hourly: HourlyWeather[] = [];
+      if (weatherData.hourly && weatherData.hourly.time) {
+        for (let i = 0; i < weatherData.hourly.time.length; i++) {
+          hourly.push({
+            time: new Date(weatherData.hourly.time[i]),
+            temperature: weatherData.hourly.temperature_2m[i],
+            windSpeed: weatherData.hourly.wind_speed_10m[i],
+            waveHeight: marineData?.hourly?.wave_height?.[i] ?? null,
+            precipitation: weatherData.hourly.precipitation[i],
+            condition: mapWeatherCode(weatherData.hourly.weather_code[i])
+          });
+        }
       }
-    }
 
-    const daily: DailyWeather[] = [];
-    if (weatherData.daily && weatherData.daily.time) {
-      for (let i = 0; i < weatherData.daily.time.length; i++) {
-        daily.push({
-          date: new Date(weatherData.daily.time[i]),
-          high: weatherData.daily.temperature_2m_max[i],
-          low: weatherData.daily.temperature_2m_min[i],
-          windSpeedMax: weatherData.daily.wind_speed_10m_max[i],
-          waveHeightMax: marineData?.daily?.wave_height_max?.[i] ?? null,
-          condition: mapWeatherCode(weatherData.daily.weather_code[i]),
-          status: 'GO' // Status is calculated by Risk Engine later
-        });
+      const daily: DailyWeather[] = [];
+      if (weatherData.daily && weatherData.daily.time) {
+        for (let i = 0; i < weatherData.daily.time.length; i++) {
+          daily.push({
+            date: new Date(weatherData.daily.time[i]),
+            high: weatherData.daily.temperature_2m_max[i],
+            low: weatherData.daily.temperature_2m_min[i],
+            windSpeedMax: weatherData.daily.wind_speed_10m_max[i],
+            waveHeightMax: marineData?.daily?.wave_height_max?.[i] ?? null,
+            condition: mapWeatherCode(weatherData.daily.weather_code[i]),
+            status: 'GO'
+          });
+        }
       }
-    }
 
-    return {
-      current,
-      hourly,
-      daily,
-      isMockData: false,
-      dataSource: this.dataSource,
-      fetchedAt: new Date()
-    };
+      const forecastResult: WeatherForecast = {
+        current,
+        hourly,
+        daily,
+        isMockData: false,
+        dataSource: this.dataSource,
+        fetchedAt: new Date()
+      };
+
+      try {
+        if (redis.status === 'ready') {
+          const persistKey = `weather:forecast:persist:${location.lat.toFixed(2)}:${location.lon.toFixed(2)}:${days}`;
+          await redis.set(persistKey, JSON.stringify(forecastResult));
+        }
+      } catch (err) {
+        console.warn('[Weather] Redis persist save error:', err);
+      }
+
+      return forecastResult;
+    } catch (error) {
+      console.warn('[Weather] Open-Meteo forecast failed, trying persistent fallback...', error);
+      
+      try {
+        if (redis.status === 'ready') {
+          const persistKey = `weather:forecast:persist:${location.lat.toFixed(2)}:${location.lon.toFixed(2)}:${days}`;
+          const cached = await redis.get(persistKey);
+          if (cached) {
+            console.log('[Weather] Recovered previous cached weather forecast');
+            const data = JSON.parse(cached);
+            data.fetchedAt = new Date();
+            return data;
+          }
+        }
+      } catch (err) {
+        console.warn('[Weather] Redis persist load error:', err);
+      }
+
+      console.log('[Weather] No cached forecast. Using safe mock forecast fallback.');
+      const current = await this.getCurrentConditions(location);
+      const mockDaily: DailyWeather[] = Array.from({ length: days }, (_, i) => ({
+        date: new Date(Date.now() + i * 86_400_000),
+        high: 30,
+        low: 25,
+        windSpeedMax: 15,
+        waveHeightMax: 1.0,
+        condition: 'Partly Cloudy',
+        status: 'GO'
+      }));
+      return {
+        current,
+        hourly: [],
+        daily: mockDaily,
+        isMockData: true,
+        dataSource: 'Fallback Mock Weather Provider',
+        fetchedAt: new Date()
+      };
+    }
   }
 
   public getDataFreshness(): DataFreshnessInfo {

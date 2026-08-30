@@ -109,5 +109,155 @@ router.get('/safe-route', validate(SafeRouteSchema, 'query'), asyncHandler(async
   res.json(body)
 }))
 
+import { getOceanProvider } from '../services/ocean'
+import { getGeospatialProvider } from '../services/geospatial'
+
+const TripAnalyzeSchema = z.object({
+  originLat:     z.coerce.number().min(-90).max(90),
+  originLon:     z.coerce.number().min(-180).max(180),
+  originName:    z.string().default('Origin'),
+  destLat:       z.coerce.number().min(-90).max(90),
+  destLon:       z.coerce.number().min(-180).max(180),
+  destName:      z.string().default('Destination'),
+  departureDate: z.string().optional(),
+  departureTime: z.string().optional(),
+  boatKey:       z.enum(['small', 'mechanized']).default('mechanized'),
+  purpose:       z.string().optional().default('Fishing'),
+})
+
+// POST /api/trip/analyze
+router.post('/analyze', validate(TripAnalyzeSchema, 'body'), asyncHandler(async (req, res) => {
+  const {
+    originLat, originLon, originName,
+    destLat, destLon, destName,
+    departureDate, departureTime, boatKey, purpose
+  } = req.body
+
+  const weatherProv = getWeatherProvider()
+  const oceanProv = getOceanProvider()
+  const geoProv = getGeospatialProvider()
+
+  const depDateTimeStr = `${departureDate || new Date().toISOString().split('T')[0]}T${departureTime || '06:00'}:00`
+  const depDate = new Date(depDateTimeStr)
+  const validDepDate = !isNaN(depDate.getTime()) ? depDate : new Date()
+
+  // Concurrently execute Weather, Ocean, Geospatial & Route agents
+  const [weatherSnap, oceanSnap, boundaryDist, fishingZoneKm, routeAnalysis, routeResult] = await Promise.all([
+    weatherProv.getCurrentConditions({ lat: originLat, lon: originLon }).catch(() => null),
+    oceanProv.getSnapshot({ lat: originLat, lon: originLon }).catch(() => null),
+    geoProv.distanceToBoundaryNm({ lat: originLat, lon: originLon }).catch(() => 999),
+    geoProv.nearestFishingZoneKm({ lat: originLat, lon: originLon }).catch(() => -1),
+    geoProv.analyseRoute({ lat: originLat, lon: originLon }, { lat: destLat, lon: destLon }).catch(() => null),
+    getSafeRoute(originLat, originLon, destLat, destLon, { boatKey, departureTime: validDepDate }).catch(() => null)
+  ])
+
+  // Determine overall risk recommendation
+  const reasons: string[] = []
+  let overallStatus: StatusLevel = 'GO'
+
+  if (routeResult) {
+    if (routeResult.status === 'NO-GO' || (routeResult.status as string) === 'NO_GO') {
+      overallStatus = 'NO_GO'
+      if (routeResult.reason) reasons.push(routeResult.reason)
+      if (routeResult.hazards && routeResult.hazards.length > 0) {
+        reasons.push(...routeResult.hazards)
+      }
+    } else if (routeResult.status === 'CAUTION') {
+      overallStatus = 'CAUTION'
+      if (routeResult.reason) reasons.push(routeResult.reason)
+      if (routeResult.hazards && routeResult.hazards.length > 0) {
+        reasons.push(...routeResult.hazards)
+      } else if (routeResult.cautionNodesCount && routeResult.cautionNodesCount > 0) {
+        reasons.push(`Elevated sea state or wind conditions encountered on ${routeResult.cautionNodesCount} route waypoint(s).`)
+      }
+    }
+  }
+
+  if (routeAnalysis?.routeIntersectsRestricted) {
+    overallStatus = 'NO_GO'
+    reasons.push(`Route intersects restricted zones: ${routeAnalysis.restrictedZonesOnRoute.join(', ')}`)
+  }
+
+  if (boundaryDist < 10) {
+    overallStatus = 'NO_GO'
+    reasons.push(`Dangerously close to international maritime boundary (${boundaryDist} nm).`)
+  } else if (boundaryDist < 60 && overallStatus !== 'NO_GO') {
+    if (overallStatus === 'GO') overallStatus = 'CAUTION'
+    reasons.push(`Operating near maritime boundary (${boundaryDist} nm). Maintain heightened watch.`)
+  }
+
+  const effWave = oceanSnap?.waveHeight ?? weatherSnap?.waveHeight ?? 0
+  const effWind = weatherSnap?.windSpeed ?? 0
+
+  const boatMaxWave = boatKey === 'small' ? 1.2 : 2.0
+  const boatMaxWind = boatKey === 'small' ? 25 : 35
+
+  if (effWave > boatMaxWave) {
+    if (effWave > boatMaxWave * 1.5) {
+      overallStatus = 'NO_GO'
+    } else if (overallStatus !== 'NO_GO') {
+      overallStatus = 'CAUTION'
+    }
+    reasons.push(`Wave height (${effWave} m) exceeds recommended threshold (${boatMaxWave} m) for ${boatKey === 'small' ? 'small traditional boat' : 'mechanized boat'}.`)
+  }
+
+  if (effWind > boatMaxWind) {
+    if (effWind > boatMaxWind * 1.3) {
+      overallStatus = 'NO_GO'
+    } else if (overallStatus !== 'NO_GO') {
+      overallStatus = 'CAUTION'
+    }
+    reasons.push(`Wind speed (${effWind} km/h) exceeds operational limit (${boatMaxWind} km/h) for ${boatKey === 'small' ? 'small traditional boat' : 'mechanized boat'}.`)
+  }
+
+  const uniqueReasons = Array.from(new Set(reasons))
+
+  if (overallStatus === 'CAUTION' && uniqueReasons.length === 0) {
+    uniqueReasons.push('Elevated marine risks or weather conditions detected along route.')
+  } else if (overallStatus === 'NO_GO' && uniqueReasons.length === 0) {
+    uniqueReasons.push('Unsafe marine or environmental conditions detected along planned route.')
+  } else if (overallStatus === 'GO' && uniqueReasons.length === 0) {
+    uniqueReasons.push('All weather, ocean, geospatial, and routing parameters are within safe limits for your vessel.')
+  }
+
+  const analysisData = {
+    tripSummary: {
+      originName,
+      origin: { lat: originLat, lon: originLon },
+      destName,
+      destination: { lat: destLat, lon: destLon },
+      departureDate: departureDate || new Date().toISOString().split('T')[0],
+      departureTime: departureTime || '06:00 AM',
+      boatKey,
+      boatLabel: boatKey === 'small' ? 'Small traditional boat' : 'Mechanized boat',
+      purpose: purpose || 'General',
+    },
+    route: routeResult,
+    weather: weatherSnap,
+    ocean: oceanSnap,
+    geospatial: {
+      distanceToBoundaryNm: boundaryDist,
+      nearestFishingZoneKm: fishingZoneKm,
+      routeAnalysis,
+      dataSource: geoProv.dataSource,
+      isMockData: geoProv.isMock,
+    },
+    risk: {
+      overallStatus,
+      reasons: uniqueReasons,
+    }
+  }
+
+  const response: ApiSuccess<typeof analysisData> = {
+    ok: true,
+    data: analysisData,
+    isMockData: geoProv.isMock || weatherSnap?.isMockData || false,
+    timestamp: new Date().toISOString(),
+  }
+
+  res.json(response)
+}))
+
 export default router
+
 

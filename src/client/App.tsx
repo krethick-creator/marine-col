@@ -1,5 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
-import { useEffect } from 'react'
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom'
+import { useEffect, useRef } from 'react'
 import OceanBackground from './components/layout/OceanBackground'
 import Sidebar from './components/layout/Sidebar'
 import TopBar from './components/layout/TopBar'
@@ -24,7 +24,8 @@ import FeedbackPage from './pages/Feedback'
 
 // Protected Route Wrapper
 const ProtectedRoute = () => {
-  const { isAuthenticated } = useAuthStore();
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
+  
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   
   return (
@@ -40,7 +41,7 @@ const ProtectedRoute = () => {
 
 // Public Route Wrapper
 const PublicRoute = () => {
-  const { isAuthenticated } = useAuthStore();
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   if (isAuthenticated) return <Navigate to="/home" replace />;
   return (
     <div className="app-layout" style={{ justifyContent: 'center', alignItems: 'center' }}>
@@ -53,7 +54,8 @@ import { useAppStore } from './store'
 
 export default function App() {
   const checkAuth = useAuthStore(state => state.clearError); // Fix infinite loop
-  const { user, fetchWeather } = useAppStore();
+  const user = useAppStore(state => state.user);
+  const fetchWeather = useAppStore(state => state.fetchWeather);
 
   useEffect(() => {
     checkAuth();
@@ -73,7 +75,7 @@ export default function App() {
   }, [user?.location?.lat, user?.location?.lon, fetchWeather]);
 
   return (
-    <BrowserRouter>
+    <>
       {/* Animated ocean background - fixed behind everything */}
       <OceanBackground />
 
@@ -105,6 +107,6 @@ export default function App() {
           <Route path="/feedback"   element={<FeedbackPage />} />
         </Route>
       </Routes>
-    </BrowserRouter>
+    </>
   )
 }
