@@ -54,8 +54,11 @@ process.on('unhandledRejection', (reason, promise) => {
   console.error('[server] Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
+import { groqModelRouter } from './llm/GroqModelRouter'
+
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`[server]: ORCA Server is running at http://localhost:${PORT}`)
+  groqModelRouter.printStatus()
 })
 
 server.on('error', (err) => {
