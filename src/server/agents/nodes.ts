@@ -1,6 +1,7 @@
 import { OrcaState } from './OrcaState';
 import { SystemMessage } from '@langchain/core/messages';
 import { groqModelRouter } from '../llm/GroqModelRouter';
+import { getSatelliteProvider } from '../services/satellite';
 
 export const plannerAgent = async (state: typeof OrcaState.State) => {
   const prompt = `You are the ORCA Planner Agent. Analyze the user's query and determine the intent.
@@ -117,9 +118,47 @@ export const oceanAgent = async (state: typeof OrcaState.State) => {
 };
 
 export const satelliteAgent = async (state: typeof OrcaState.State) => {
-  return { 
-    executedSteps: ['satelliteAgent'] 
-  };
+  const location = state.contextData?.location;
+
+  if (
+    !location ||
+    typeof location.lat !== 'number' ||
+    typeof location.lon !== 'number'
+  ) {
+    console.warn('[Satellite Agent] No valid location coordinates in state context.');
+
+    return {
+      contextData: { satellite: null },
+      executedSteps: ['satelliteAgent'],
+    };
+  }
+
+  try {
+    const provider = getSatelliteProvider();
+
+    const satelliteSnapshot = await provider.getSnapshot({
+      lat: location.lat,
+      lon: location.lon,
+    });
+
+    console.log(
+      `[Satellite Agent] Retrieved satellite snapshot for ${location.lat}, ${location.lon}`
+    );
+
+    return {
+      contextData: {
+        satellite: satelliteSnapshot,
+      },
+      executedSteps: ['satelliteAgent'],
+    };
+  } catch (error) {
+    console.error('[Satellite Agent] Error fetching satellite snapshot:', error);
+
+    return {
+      contextData: { satellite: null },
+      executedSteps: ['satelliteAgent'],
+    };
+  }
 };
 
 export const geospatialAgent = async (state: typeof OrcaState.State) => {

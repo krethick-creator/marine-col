@@ -22,7 +22,7 @@
     },
     "types": ["vite/client", "jest", "node"]
   },
-  "include": ["src"],
+  "files": [],
   "references": [
     { "path": "./tsconfig.node.json" },
     { "path": "./tsconfig.app.json" }

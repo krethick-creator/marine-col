@@ -8,27 +8,60 @@ class GroqModelRouter {
   private fallbackChain = getModelFallbackChain();
 
   constructor() {
-    // Initialize health state
+    this.initHealthState();
+  }
+
+  public initHealthState() {
+    this.fallbackChain = getModelFallbackChain();
     for (const model of this.fallbackChain) {
-      this.healthState.set(model.name, {
-        model: model.name,
-        available: true,
-        cooldownUntil: null,
-        consecutiveFailures: 0,
-        lastSuccess: null,
-        lastFailure: null,
-        totalRequests: 0,
-      });
+      if (!this.healthState.has(model.name)) {
+        this.healthState.set(model.name, {
+          model: model.name,
+          available: true,
+          cooldownUntil: null,
+          consecutiveFailures: 0,
+          lastSuccess: null,
+          lastFailure: null,
+          totalRequests: 0,
+        });
+      }
+    }
+  }
+
+  public printStatus() {
+    const chainStr = this.fallbackChain.map((m, i) => `#${i + 1} ${m.name}`).join(' -> ');
+    console.log(`[LLM] Groq Model Router chain configured: ${chainStr}`);
+    if (!process.env.GROQ_API_KEY) {
+      console.warn(`[LLM] WARNING: GROQ_API_KEY is not set in environment (.env).`);
+    } else {
+      console.log(`[LLM] GROQ_API_KEY detected in environment.`);
     }
   }
 
   private getHealthyModels(): string[] {
     const now = Date.now();
-    const availableModels = [];
+    const availableModels: string[] = [];
+
+    // Ensure fallback chain is populated
+    if (this.fallbackChain.length === 0) {
+      this.initHealthState();
+    }
 
     for (const modelConfig of this.fallbackChain) {
-      const state = this.healthState.get(modelConfig.name)!;
-      
+      let state = this.healthState.get(modelConfig.name);
+      if (!state) {
+        state = {
+          model: modelConfig.name,
+          available: true,
+          cooldownUntil: null,
+          consecutiveFailures: 0,
+          lastSuccess: null,
+          lastFailure: null,
+          totalRequests: 0,
+        };
+        this.healthState.set(modelConfig.name, state);
+      }
+
       if (state.cooldownUntil && now > state.cooldownUntil) {
         // Cooldown expired, mark as available again
         state.available = true;
@@ -43,14 +76,14 @@ class GroqModelRouter {
     return availableModels;
   }
 
-  private markFailure(modelName: string, isRateLimit: boolean, customCooldownMs?: number) {
+  private markFailure(modelName: string, isRateLimitOrUnavailable: boolean, customCooldownMs?: number) {
     const state = this.healthState.get(modelName);
     if (!state) return;
 
     state.consecutiveFailures += 1;
     state.lastFailure = Date.now();
 
-    if (isRateLimit || state.consecutiveFailures >= ROUTER_CONFIG.maxRetries) {
+    if (isRateLimitOrUnavailable || state.consecutiveFailures >= ROUTER_CONFIG.maxRetries) {
       state.available = false;
       const cooldown = customCooldownMs ?? ROUTER_CONFIG.cooldownMs;
       state.cooldownUntil = Date.now() + cooldown;
@@ -71,7 +104,7 @@ class GroqModelRouter {
     const availableModels = this.getHealthyModels();
     
     if (availableModels.length === 0) {
-      throw new Error("ORCA is temporarily unable to process the AI request. Please try again shortly.");
+      throw new Error("ORCA is temporarily unable to process the AI request. All configured models are currently in cooldown. Please try again shortly.");
     }
 
     let fallbackCount = 0;
@@ -122,20 +155,24 @@ class GroqModelRouter {
           : (typeof error?.status === 'number' ? error.status : null);
         
         const isTimeout = errorMessage.toLowerCase().includes('timeout') || error?.name === 'TimeoutError';
-        
+        const isNotFound = statusCode === 404 || errorMessage.toLowerCase().includes('not found') || errorMessage.toLowerCase().includes('model_not_found') || errorMessage.toLowerCase().includes('does not exist');
+        const isDecommissioned = (statusCode === 400 && (errorMessage.toLowerCase().includes('decommissioned') || errorMessage.toLowerCase().includes('no longer supported'))) || errorMessage.toLowerCase().includes('model_decommissioned');
+
         if (statusCode === 401) {
           console.error(`[LLM] Model ${modelName} authentication failed (401): ${errorMessage}`);
-          // 401 means the API key is invalid, so all models will fail.
-          throw new Error("ORCA is temporarily unable to process the AI request. Please try again shortly.");
+          throw new Error("ORCA is temporarily unable to process the AI request. Please check that GROQ_API_KEY in .env is valid.");
         } else if (statusCode === 403) {
           console.error(`[LLM] Model ${modelName} forbidden (403): ${errorMessage}`);
           this.markFailure(modelName, false);
-        } else if (statusCode === 404) {
-          console.error(`[LLM] Model ${modelName} not found (404) - possibly deprecated or invalid ID: ${errorMessage}`);
-          this.markFailure(modelName, true, 365 * 24 * 3600 * 1000); // Mark as unavailable permanently (1 year) if not found
+        } else if (isNotFound) {
+          console.error(`[LLM] Model ${modelName} not found (404) - model is unavailable: ${errorMessage}`);
+          this.markFailure(modelName, true); // standard cooldown, NOT 1 year
+        } else if (isDecommissioned) {
+          console.error(`[LLM] Model ${modelName} decommissioned (400) - model is unavailable: ${errorMessage}`);
+          this.markFailure(modelName, true);
         } else if (statusCode === 400) {
           console.error(`[LLM] Model ${modelName} rejected request (400): ${errorMessage}`);
-          this.markFailure(modelName, true); // Fallback to a different model in case of context length or strict prompt issues
+          this.markFailure(modelName, true);
         } else if (statusCode === 429 || errorMessage.toLowerCase().includes('rate limit')) {
           console.warn(`[LLM] Model ${modelName} rate limited (429): ${errorMessage}`);
           this.markFailure(modelName, true);
@@ -146,7 +183,7 @@ class GroqModelRouter {
           console.warn(`[LLM] Model ${modelName} timed out: ${errorMessage}`);
           this.markFailure(modelName, false);
         } else {
-          console.error(`[LLM] Model ${modelName} encountered unknown error (Status ${statusCode}): ${errorMessage}`);
+          console.error(`[LLM] Model ${modelName} encountered error (Status ${statusCode}): ${errorMessage}`);
           this.markFailure(modelName, false);
         }
         
