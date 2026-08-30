@@ -31,7 +31,7 @@
     "framer-motion": "^13.1.1",
     "helmet": "^8.3.0",
     "ioredis": "^6.0.0",
-    "jsonwebtoken": "^9.0.3",
+    "jsonwebtoken": "^9.0.0",
     "lucide-react": "^1.35.0",
     "maplibre-gl": "^6.6.0",
     "morgan": "^1.12.0",
@@ -44,7 +44,7 @@
     "remark-gfm": "^4.0.1",
     "tailwind-merge": "^3.6.0",
     "tailwindcss": "^4.3.3",
-    "uuid": "^14.0.2",
+    "uuid": "^14.0.0",
     "ws": "^8.21.3",
     "zod": "^4.5.1",
     "zustand": "^5.0.15"

@@ -1,27 +1,28 @@
 import { OrcaState } from './OrcaState';
 import { SystemMessage } from '@langchain/core/messages';
 import { groqModelRouter } from '../llm/GroqModelRouter';
+import { getSatelliteProvider } from '../services/satellite';
 
 export const plannerAgent = async (state: typeof OrcaState.State) => {
   const prompt = `You are the ORCA Planner Agent. Analyze the user's query and determine the intent.
 Possible intents: 'weather', 'fishing', 'trip_planning', 'safety', 'general'.
 Query: "${state.query}"
 Respond with ONLY the intent string.`;
-
+  
   const response = await groqModelRouter.invoke([new SystemMessage(prompt)], 'planning');
   const intent = response.response.trim().toLowerCase();
-
-  return {
+  
+  return { 
     intent,
-    executedSteps: ['plannerAgent']
+    executedSteps: ['plannerAgent'] 
   };
 };
 
 export const dataDiscoveryAgent = async (state: typeof OrcaState.State) => {
   // In a real scenario, this agent would determine exactly which API endpoints to call.
   // For now, we pass the baton to the specific data agents based on intent.
-  return {
-    executedSteps: ['dataDiscoveryAgent']
+  return { 
+    executedSteps: ['dataDiscoveryAgent'] 
   };
 };
 
@@ -66,17 +67,17 @@ export const weatherAgent = async (state: typeof OrcaState.State) => {
   }
 
   const provider = getWeatherProvider();
-
+  
   try {
     const weatherData = await provider.getCurrentConditions({ lat: location.lat, lon: location.lon });
     // Guarantee correct location name inside the weatherData returned to the prompt context
     weatherData.location = location.name || `${location.lat.toFixed(2)}, ${location.lon.toFixed(2)}`;
-    return {
-      contextData: {
+    return { 
+      contextData: { 
         location,
-        weather: weatherData
+        weather: weatherData 
       },
-      executedSteps: ['weatherAgent']
+      executedSteps: ['weatherAgent'] 
     };
   } catch (error) {
     console.error('[Weather Agent] Failed to fetch weather:', error);
@@ -93,9 +94,9 @@ export const oceanAgent = async (state: typeof OrcaState.State) => {
 
   if (!location || typeof location.lat !== 'number' || typeof location.lon !== 'number') {
     console.warn('[Ocean Agent] No valid location coordinates in state context.');
-    return {
+    return { 
       contextData: { ocean: null },
-      executedSteps: ['oceanAgent']
+      executedSteps: ['oceanAgent'] 
     };
   }
 
@@ -103,86 +104,76 @@ export const oceanAgent = async (state: typeof OrcaState.State) => {
 
   try {
     const oceanSnapshot = await provider.getSnapshot({ lat: location.lat, lon: location.lon });
-    return {
+    return { 
       contextData: { ocean: oceanSnapshot },
-      executedSteps: ['oceanAgent']
+      executedSteps: ['oceanAgent'] 
     };
   } catch (error) {
     console.error('[Ocean Agent] Error fetching ocean snapshot:', error);
-    return {
+    return { 
       contextData: { ocean: null },
-      executedSteps: ['oceanAgent']
+      executedSteps: ['oceanAgent'] 
     };
   }
 };
 
 export const satelliteAgent = async (state: typeof OrcaState.State) => {
-  return {
-    executedSteps: ['satelliteAgent']
-  };
-};
-
-import { getGeospatialProvider } from '../services/geospatial';
-
-export const geospatialAgent = async (state: typeof OrcaState.State) => {
   const location = state.contextData?.location;
 
-  // If no location, skip geospatial analysis
-  if (!location || typeof location.lat !== 'number' || typeof location.lon !== 'number') {
-    console.warn('[Geospatial Agent] No valid location coordinates in state context.');
+  if (
+    !location ||
+    typeof location.lat !== 'number' ||
+    typeof location.lon !== 'number'
+  ) {
+    console.warn('[Satellite Agent] No valid location coordinates in state context.');
+
     return {
-      contextData: { geospatial: null },
-      executedSteps: ['geospatialAgent']
+      contextData: { satellite: null },
+      executedSteps: ['satelliteAgent'],
     };
   }
-
-  const provider = getGeospatialProvider();
 
   try {
-    // Get geospatial data for current location
-    const [distanceToBoundaryNm, nearestFishingZoneKm] = await Promise.all([
-      provider.distanceToBoundaryNm({ lat: location.lat, lon: location.lon }),
-      provider.nearestFishingZoneKm({ lat: location.lat, lon: location.lon }),
-    ]);
+    const provider = getSatelliteProvider();
 
-    // For trip planning scenarios, also analyse the route if we have destination
-    let routeAnalysis = null;
-    if (state.intent === 'trip_planning' && state.contextData?.destination) {
-      const dest = state.contextData.destination;
-      if (typeof dest.lat === 'number' && typeof dest.lon === 'number') {
-        routeAnalysis = await provider.analyseRoute(
-          { lat: location.lat, lon: location.lon },
-          { lat: dest.lat, lon: dest.lon }
-        );
-      }
-    }
+    const satelliteSnapshot = await provider.getSnapshot({
+      lat: location.lat,
+      lon: location.lon,
+    });
 
-    const geoData = {
-      distanceToBoundaryNm,
-      nearestFishingZoneKm,
-      routeAnalysis,
-      dataSource: provider.dataSource,
-      isMockData: provider.isMock,
-    };
+    console.log(
+      `[Satellite Agent] Retrieved satellite snapshot for ${location.lat}, ${location.lon}`
+    );
 
     return {
-      contextData: { geospatial: geoData },
-      executedSteps: ['geospatialAgent']
+      contextData: {
+        satellite: satelliteSnapshot,
+      },
+      executedSteps: ['satelliteAgent'],
     };
   } catch (error) {
-    console.error('[Geospatial Agent] Error fetching geospatial data:', error);
+    console.error('[Satellite Agent] Error fetching satellite snapshot:', error);
+
     return {
-      contextData: { geospatial: null },
-      executedSteps: ['geospatialAgent']
+      contextData: { satellite: null },
+      executedSteps: ['satelliteAgent'],
     };
   }
+};
+
+export const geospatialAgent = async (state: typeof OrcaState.State) => {
+  const geoData = { nearInternationalBoundary: false, nearRestrictedZone: false };
+  return { 
+    contextData: { geospatial: geoData },
+    executedSteps: ['geospatialAgent'] 
+  };
 };
 
 export const alertAgent = async (state: typeof OrcaState.State) => {
   const activeAlerts: any[] = []; // Mocking no active cyclone alerts
-  return {
+  return { 
     contextData: { alerts: activeAlerts },
-    executedSteps: ['alertAgent']
+    executedSteps: ['alertAgent'] 
   };
 };
 
@@ -199,15 +190,7 @@ export const riskAgent = async (state: typeof OrcaState.State) => {
   const isGoodPFZ = ocean?.pfzScore && ocean.pfzScore > 0.7;
   const isHighWaves = effectiveWaveHeight !== null && effectiveWaveHeight > 2.5;
   const hasCycloneAlert = alerts && alerts.length > 0;
-
-  // Use actual geospatial data - check distance to boundary
-  const distanceToBoundaryNm = geospatial?.distanceToBoundaryNm ?? null;
-  const isNearBoundary = distanceToBoundaryNm !== null && distanceToBoundaryNm < 60;
-  const isVeryNearBoundary = distanceToBoundaryNm !== null && distanceToBoundaryNm < 10;
-
-  // Check for restricted zones on route (if route analysis is available)
-  const routeIntersectsRestricted = geospatial?.routeAnalysis?.routeIntersectsRestricted ?? false;
-
+  const isNearBoundary = geospatial?.nearInternationalBoundary === true;
   const isWorseningAfternoon = weather?.morningWind < 15 && weather?.afternoonWind > 25;
   const hasDangerousReturn = weather?.returnConditionsDangerous === true;
 
@@ -215,12 +198,6 @@ export const riskAgent = async (state: typeof OrcaState.State) => {
   if (isGoodPFZ && isHighWaves) {
     status = 'NO_GO';
     reasons.push('High wave conditions at target PFZ. Unsafe to operate despite good fish potential.');
-  }
-
-  // Rule 1a: Route intersects restricted zones -> NO_GO
-  if (routeIntersectsRestricted) {
-    status = 'NO_GO';
-    reasons.push('Planned route intersects restricted maritime zones. Navigation prohibited.');
   }
 
   // Rule 2: Good PFZ + cyclone alert -> NO_GO
@@ -235,22 +212,10 @@ export const riskAgent = async (state: typeof OrcaState.State) => {
     reasons.push('Return trip conditions are dangerous. Zone is not recommended.');
   }
 
-  // Rule 3: Very near international boundary -> NO_GO
-  if (isVeryNearBoundary && status !== 'NO_GO') {
-    status = 'NO_GO';
-    reasons.push(`Critical: Only ${distanceToBoundaryNm}nm from international maritime boundary. Do not proceed — risk of international waters violation.`);
-  }
-
-  // Rule 3b: Good PFZ + near international boundary -> CAUTION
-  if (isGoodPFZ && isNearBoundary && !isVeryNearBoundary && status !== 'NO_GO') {
+  // Rule 3: Good PFZ + route near international boundary -> suggest safer alternative route
+  if (isGoodPFZ && isNearBoundary && status !== 'NO_GO') {
     status = 'CAUTION';
-    reasons.push(`Proximity to international boundary (${distanceToBoundaryNm}nm). Suggest planning a safer alternative route with greater boundary clearance.`);
-  }
-
-  // Rule 3c: Trip not good PFZ but near boundary -> CAUTION  
-  if (!isGoodPFZ && isNearBoundary && status !== 'NO_GO') {
-    status = 'CAUTION';
-    reasons.push(`Operating near international maritime boundary (${distanceToBoundaryNm}nm). Exercise heightened caution and maintain course within territorial waters.`);
+    reasons.push('Proximity to international boundary. Suggest planning a safer alternative route.');
   }
 
   // Rule 4: Good morning conditions + worsening afternoon weather -> GO early + recommend return before unsafe conditions
@@ -275,18 +240,11 @@ export const riskAgent = async (state: typeof OrcaState.State) => {
 
   if (status === 'GO') {
     reasons.push('All safety parameters are within normal limits.');
-    // Add positive geospatial notes
-    if (isNearBoundary) {
-      reasons.push(`Note: Operating near international boundary (${distanceToBoundaryNm}nm) - maintain course within territorial waters.`);
-    }
-    if (geospatial?.nearestFishingZoneKm) {
-      reasons.push(`Nearest fishing zone: ${geospatial.nearestFishingZoneKm}km away.`);
-    }
   }
 
-  return {
-    riskAssessment: {
-      status,
+  return { 
+    riskAssessment: { 
+      status, 
       reasoning: reasons,
       evidence: {
         windSpeed: effectiveWindSpeed,
@@ -297,7 +255,7 @@ export const riskAgent = async (state: typeof OrcaState.State) => {
         currentSpeed: ocean?.currentSpeed ?? null
       }
     },
-    executedSteps: ['riskAgent']
+    executedSteps: ['riskAgent'] 
   };
 };
 
@@ -305,9 +263,9 @@ export const routeAgent = async (state: typeof OrcaState.State) => {
   if (state.intent !== 'trip_planning') {
     return { executedSteps: ['routeAgent'] };
   }
-  return {
+  return { 
     routePlan: { waypoints: 3, estimatedDuration: '3 days' },
-    executedSteps: ['routeAgent']
+    executedSteps: ['routeAgent'] 
   };
 };
 
@@ -322,7 +280,7 @@ export const synthesisAgent = async (state: typeof OrcaState.State) => {
 
   const contextDump = JSON.stringify(state.contextData, null, 2);
   const riskDump = JSON.stringify(state.riskAssessment, null, 2);
-
+  
   const prompt = `You are the ORCA Synthesis Agent. Your job is to provide a final response to the fisherman or marine operator.
 Do NOT hallucinate data. Use the provided context and risk assessment.
 IMPORTANT: You MUST use the exact location name, latitude, and longitude provided in the Context Data. Do not invent or change the location name.
@@ -344,9 +302,9 @@ User Query: "${state.query}"
 Provide a professional, concise, clear markdown response summarizing the situation and advising the user based on the deterministic risk assessment.`;
 
   const response = await groqModelRouter.invoke([new SystemMessage(prompt)], 'synthesis');
-
-  return {
+  
+  return { 
     finalResponse: response.response,
-    executedSteps: ['synthesisAgent']
+    executedSteps: ['synthesisAgent'] 
   };
 };
