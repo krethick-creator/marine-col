@@ -82,6 +82,7 @@ interface ChatStore {
   currentAgentIndex: number    // which agent step is running
 
   addMessage: (msg: ChatMessage) => void
+  updateMessage: (id: string, partial: Partial<ChatMessage>) => void
   setLoading: (loading: boolean) => void
   setAgentIndex: (idx: number) => void
   clearChat: () => void
@@ -95,6 +96,10 @@ export const useChatStore = create<ChatStore>((set) => ({
   addMessage: (msg) =>
     set((s) => ({ messages: [...s.messages, msg] })),
 
+  updateMessage: (id, partial) =>
+    set((s) => ({
+      messages: s.messages.map((m) => (m.id === id ? { ...m, ...partial } : m)),
+    })),
   setLoading: (loading) => set({ isLoading: loading }),
 
   setAgentIndex: (idx) => set({ currentAgentIndex: idx }),

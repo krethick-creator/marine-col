@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev:client": "vite",
+    "dev:client:vite": "vite",
+    "dev:client": "wait-on tcp:4000 && npm run dev:client:vite",
     "dev:server": "tsx src/server/index.ts",
     "dev": "concurrently \"npm run dev:client\" \"npm run dev:server\"",
     "build:client": "tsc -b && vite build",
@@ -36,8 +37,10 @@
     "pg": "^8.23.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "react-markdown": "^10.1.0",
     "react-router-dom": "^7.18.3",
     "recharts": "^3.10.1",
+    "remark-gfm": "^4.0.1",
     "tailwind-merge": "^3.6.0",
     "tailwindcss": "^4.3.3",
     "uuid": "^14.0.2",
@@ -66,6 +69,7 @@
     "ts-node-dev": "^2.0.0",
     "tsx": "^4.23.12",
     "typescript": "~6.0.2",
-    "vite": "^8.2.2"
+    "vite": "^8.2.2",
+    "wait-on": "^9.1.0"
   }
 }

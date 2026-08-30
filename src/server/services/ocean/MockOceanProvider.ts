@@ -10,6 +10,7 @@ export class MockOceanProvider implements OceanProvider {
       sst: 28.5,
       chlorophyll: 1.6,
       waveHeight: 1.2,
+      swellPeriod: 8.5,
       swellDirection: 'SW',
       currentSpeed: 0.8,
       currentDirection: 'NE',

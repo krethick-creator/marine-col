@@ -1,8 +1,10 @@
+import dotenv from 'dotenv'
+dotenv.config()
+
 import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
 import morgan from 'morgan'
-import dotenv from 'dotenv'
 
 import { chatRoutes } from './routes/chat'
 import authRoutes from './routes/auth'
@@ -18,10 +20,8 @@ import weatherRoutes from './routes/weather'
 
 import { errorHandler } from './middleware/errorHandler'
 
-dotenv.config()
-
 const app = express()
-const PORT = process.env.PORT || 3001
+const PORT = parseInt(process.env.PORT || '4000', 10)
 
 app.use(cors())
 app.use(helmet())
@@ -40,8 +40,24 @@ app.use('/api/sos', sosRoutes)
 app.use('/api/trip', tripRoutes)
 app.use('/api/weather', weatherRoutes)
 
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', service: 'ORCA backend' })
+})
+
 app.use(errorHandler)
 
-app.listen(PORT, () => {
+process.on('uncaughtException', (err) => {
+  console.error('[server] Uncaught Exception:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[server] Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`[server]: ORCA Server is running at http://localhost:${PORT}`)
 })
+
+server.on('error', (err) => {
+  console.error('[server] Server error:', err);
+});

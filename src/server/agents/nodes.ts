@@ -26,9 +26,36 @@ export const dataDiscoveryAgent = async (state: typeof OrcaState.State) => {
 };
 
 import { getWeatherProvider } from '../services/weather';
+import { getOceanProvider } from '../services/ocean';
 
 export const weatherAgent = async (state: typeof OrcaState.State) => {
-  const location = state.contextData?.location;
+  let location = state.contextData?.location;
+
+  // Task 9: Derive location name from query coordinates or text
+  if (location && typeof location.lat === 'number' && typeof location.lon === 'number') {
+    const queryLower = state.query.toLowerCase();
+    let name = location.locationName || location.name || 'Chennai';
+    let lat = location.lat;
+    let lon = location.lon;
+
+    if (queryLower.includes('puducherry') || queryLower.includes('pondicherry')) {
+      lat = 11.9416;
+      lon = 79.8083;
+      name = 'Puducherry';
+    } else if (queryLower.includes('chennai') || queryLower.includes('madras')) {
+      lat = 13.0827;
+      lon = 80.2707;
+      name = 'Chennai';
+    } else {
+      // Direct coordinate checks to map to canonical names
+      const latDiff = Math.abs(location.lat - 13.0827);
+      const lonDiff = Math.abs(location.lon - 80.2707);
+      if (latDiff < 0.1 && lonDiff < 0.1) {
+        name = 'Chennai';
+      }
+    }
+    location = { ...location, lat, lon, name };
+  }
 
   if (!location || typeof location.lat !== 'number' || typeof location.lon !== 'number') {
     // If no coordinates provided, request them
@@ -42,8 +69,13 @@ export const weatherAgent = async (state: typeof OrcaState.State) => {
   
   try {
     const weatherData = await provider.getCurrentConditions({ lat: location.lat, lon: location.lon });
+    // Guarantee correct location name inside the weatherData returned to the prompt context
+    weatherData.location = location.name || `${location.lat.toFixed(2)}, ${location.lon.toFixed(2)}`;
     return { 
-      contextData: { weather: weatherData },
+      contextData: { 
+        location,
+        weather: weatherData 
+      },
       executedSteps: ['weatherAgent'] 
     };
   } catch (error) {
@@ -57,12 +89,31 @@ export const weatherAgent = async (state: typeof OrcaState.State) => {
 };
 
 export const oceanAgent = async (state: typeof OrcaState.State) => {
-  // Mocking ocean/PFZ data fetching.
-  const oceanData = { sst: 28.5, chlorophyll: 1.2, pfzScore: 0.85 };
-  return { 
-    contextData: { ocean: oceanData },
-    executedSteps: ['oceanAgent'] 
-  };
+  const location = state.contextData?.location;
+
+  if (!location || typeof location.lat !== 'number' || typeof location.lon !== 'number') {
+    console.warn('[Ocean Agent] No valid location coordinates in state context.');
+    return { 
+      contextData: { ocean: null },
+      executedSteps: ['oceanAgent'] 
+    };
+  }
+
+  const provider = getOceanProvider();
+
+  try {
+    const oceanSnapshot = await provider.getSnapshot({ lat: location.lat, lon: location.lon });
+    return { 
+      contextData: { ocean: oceanSnapshot },
+      executedSteps: ['oceanAgent'] 
+    };
+  } catch (error) {
+    console.error('[Ocean Agent] Error fetching ocean snapshot:', error);
+    return { 
+      contextData: { ocean: null },
+      executedSteps: ['oceanAgent'] 
+    };
+  }
 };
 
 export const satelliteAgent = async (state: typeof OrcaState.State) => {
@@ -93,52 +144,56 @@ export const riskAgent = async (state: typeof OrcaState.State) => {
   let status = 'GO';
   let reasons: string[] = [];
 
+  const effectiveWaveHeight = ocean?.waveHeight ?? weather?.waveHeight ?? null;
+  const effectiveSeaState = ocean?.seaState ?? weather?.seaState ?? null;
+  const effectiveWindSpeed = weather?.windSpeed ?? null;
+
   const isGoodPFZ = ocean?.pfzScore && ocean.pfzScore > 0.7;
-  const isHighWaves = weather?.waveHeight && weather.waveHeight > 2.5;
+  const isHighWaves = effectiveWaveHeight !== null && effectiveWaveHeight > 2.5;
   const hasCycloneAlert = alerts && alerts.length > 0;
   const isNearBoundary = geospatial?.nearInternationalBoundary === true;
   const isWorseningAfternoon = weather?.morningWind < 15 && weather?.afternoonWind > 25;
   const hasDangerousReturn = weather?.returnConditionsDangerous === true;
 
-  // Rule 1: Good PFZ + high waves -> NO-GO
+  // Rule 1: Good PFZ + high waves -> NO_GO
   if (isGoodPFZ && isHighWaves) {
-    status = 'NO-GO';
+    status = 'NO_GO';
     reasons.push('High wave conditions at target PFZ. Unsafe to operate despite good fish potential.');
   }
 
-  // Rule 2: Good PFZ + cyclone alert -> NO-GO
+  // Rule 2: Good PFZ + cyclone alert -> NO_GO
   if (isGoodPFZ && hasCycloneAlert) {
-    status = 'NO-GO';
+    status = 'NO_GO';
     reasons.push('Active cyclone advisory supersedes good PFZ conditions.');
   }
 
   // Rule 5: Attractive fishing zone + dangerous return conditions -> do not recommend the zone
-  if (isGoodPFZ && hasDangerousReturn && status !== 'NO-GO') {
-    status = 'NO-GO';
+  if (isGoodPFZ && hasDangerousReturn && status !== 'NO_GO') {
+    status = 'NO_GO';
     reasons.push('Return trip conditions are dangerous. Zone is not recommended.');
   }
 
   // Rule 3: Good PFZ + route near international boundary -> suggest safer alternative route
-  if (isGoodPFZ && isNearBoundary && status !== 'NO-GO') {
+  if (isGoodPFZ && isNearBoundary && status !== 'NO_GO') {
     status = 'CAUTION';
     reasons.push('Proximity to international boundary. Suggest planning a safer alternative route.');
   }
 
   // Rule 4: Good morning conditions + worsening afternoon weather -> GO early + recommend return before unsafe conditions
-  if (isWorseningAfternoon && status !== 'NO-GO') {
+  if (isWorseningAfternoon && status !== 'NO_GO') {
     status = 'CAUTION';
     reasons.push('Weather will worsen in the afternoon. GO early and return before conditions become unsafe.');
   }
 
   // Basic fallback safety checks
-  if (status !== 'NO-GO') {
-    if (!weather || weather.waveHeight === null || weather.seaState === 'UNKNOWN') {
-      status = 'NO-GO';
+  if (status !== 'NO_GO') {
+    if (effectiveWaveHeight === null) {
+      status = 'NO_GO';
       reasons.push('Critical marine safety data (wave height) is unavailable. Cannot safely recommend GO without marine data.');
-    } else if (weather.windSpeed > 30 || weather.waveHeight > 2.5) {
-      status = 'NO-GO';
+    } else if ((effectiveWindSpeed !== null && effectiveWindSpeed > 30) || effectiveWaveHeight > 2.5) {
+      status = 'NO_GO';
       reasons.push('Dangerous general wind or wave conditions.');
-    } else if (weather.windSpeed > 20 || weather.waveHeight > 1.5) {
+    } else if ((effectiveWindSpeed !== null && effectiveWindSpeed > 20) || effectiveWaveHeight > 1.5) {
       status = 'CAUTION';
       reasons.push('Moderate wind/waves, exercise caution.');
     }
@@ -149,7 +204,18 @@ export const riskAgent = async (state: typeof OrcaState.State) => {
   }
 
   return { 
-    riskAssessment: { level: status, reasons },
+    riskAssessment: { 
+      status, 
+      reasoning: reasons,
+      evidence: {
+        windSpeed: effectiveWindSpeed,
+        waveHeight: effectiveWaveHeight,
+        swellPeriod: ocean?.swellPeriod ?? weather?.swellPeriod ?? null,
+        seaState: effectiveSeaState,
+        waveDirection: ocean?.waveDirection ?? null,
+        currentSpeed: ocean?.currentSpeed ?? null
+      }
+    },
     executedSteps: ['riskAgent'] 
   };
 };
@@ -178,6 +244,14 @@ export const synthesisAgent = async (state: typeof OrcaState.State) => {
   
   const prompt = `You are the ORCA Synthesis Agent. Your job is to provide a final response to the fisherman or marine operator.
 Do NOT hallucinate data. Use the provided context and risk assessment.
+IMPORTANT: You MUST use the exact location name, latitude, and longitude provided in the Context Data. Do not invent or change the location name.
+Location Name to use: ${state.contextData.location?.name || 'Chennai'}
+Latitude: ${state.contextData.location?.lat}
+Longitude: ${state.contextData.location?.lon}
+
+- All wind speeds are strictly in km/h. Do not manufacture, convert, or invent other units.
+- Weather and sea state values must match the Context Data exactly.
+
 Risk Assessment (DETERMINISTIC - DO NOT OVERRIDE THIS LEVEL):
 ${riskDump}
 

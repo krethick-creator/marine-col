@@ -61,12 +61,18 @@ export interface WeatherForecast {
 
 // ─── Ocean types ───────────────────────────────────────────────────────
 export interface OceanSnapshot {
-  sst: number               // Sea Surface Temperature °C
-  chlorophyll: number       // mg/m³
-  waveHeight: number        // metres
-  swellDirection: string
-  currentSpeed: number      // knots
-  currentDirection: string
+  sst: number | null               // Sea Surface Temperature °C
+  chlorophyll: number | null       // mg/m³
+  waveHeight: number | null        // metres
+  waveDirection?: number | null    // degrees °
+  wavePeriod?: number | null       // seconds
+  swellHeight?: number | null      // metres
+  swellPeriod: number | null       // seconds
+  swellDirection: string | null
+  currentSpeed: number | null      // km/h
+  currentDirection: string | null
+  seaState?: string | null
+  units?: Record<string, string>
   isMockData: boolean
   dataSource: string
   timestamp: Date

@@ -128,12 +128,18 @@ export interface FishingZone {
 }
 
 export interface OceanSnapshot {
-  sst: number
-  chlorophyll: number
-  waveHeight: number
-  swellDirection: string
-  currentSpeed: number
-  currentDirection: string
+  sst: number | null
+  chlorophyll: number | null
+  waveHeight: number | null
+  waveDirection?: number | null
+  wavePeriod?: number | null
+  swellHeight?: number | null
+  swellPeriod: number | null
+  swellDirection: string | null
+  currentSpeed: number | null
+  currentDirection: string | null
+  seaState?: string | null
+  units?: Record<string, string>
   isMockData: boolean
   timestamp: Date
 }

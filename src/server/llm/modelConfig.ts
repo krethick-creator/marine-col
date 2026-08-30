@@ -5,18 +5,14 @@ dotenv.config();
 export const getModelFallbackChain = (): ModelConfig[] => {
   const chain: ModelConfig[] = [];
   
-  const primary = process.env.GROQ_MODEL_PRIMARY || 'llama3-70b-8192';
+  const primary = process.env.LLM_MODEL || process.env.GROQ_MODEL_PRIMARY || 'openai/gpt-oss-120b';
   chain.push({ name: primary, priority: 1 });
 
-  const fallback1 = process.env.GROQ_MODEL_FALLBACK_1 || 'llama3-8b-8192';
+  const fallback1 = process.env.GROQ_MODEL_FALLBACK_1 || 'openai/gpt-oss-20b';
   if (fallback1) chain.push({ name: fallback1, priority: 2 });
 
-  const fallback2 = process.env.GROQ_MODEL_FALLBACK_2 || 'mixtral-8x7b-32768';
+  const fallback2 = process.env.GROQ_MODEL_FALLBACK_2 || 'qwen/qwen3.6-27b';
   if (fallback2) chain.push({ name: fallback2, priority: 3 });
-
-  const fallback3 = process.env.GROQ_MODEL_FALLBACK_3 || 'gemma-7b-it';
-  if (fallback3) chain.push({ name: fallback3, priority: 4 });
-
   // Filter out any duplicates just in case
   const uniqueNames = new Set<string>();
   const filteredChain = chain.filter((m) => {

@@ -1,6 +1,7 @@
 import { env } from '../../config/env'
 import type { OceanProvider } from './OceanProvider'
 import { MockOceanProvider } from './MockOceanProvider'
+import { OpenMeteoOceanProvider } from './OpenMeteoOceanProvider'
 
 let instance: OceanProvider | null = null
 
@@ -10,8 +11,8 @@ export function getOceanProvider(): OceanProvider {
       instance = new MockOceanProvider()
       console.log('[Ocean] Using MockOceanProvider (DEMO DATA)')
     } else {
-      console.warn('[Ocean] Real provider not yet implemented — falling back to mock')
-      instance = new MockOceanProvider()
+      instance = new OpenMeteoOceanProvider()
+      console.log('[Ocean] Using OpenMeteoOceanProvider (REAL DATA)')
     }
   }
   return instance

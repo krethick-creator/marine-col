@@ -43,7 +43,7 @@ class GroqModelRouter {
     return availableModels;
   }
 
-  private markFailure(modelName: string, isRateLimit: boolean) {
+  private markFailure(modelName: string, isRateLimit: boolean, customCooldownMs?: number) {
     const state = this.healthState.get(modelName);
     if (!state) return;
 
@@ -52,8 +52,9 @@ class GroqModelRouter {
 
     if (isRateLimit || state.consecutiveFailures >= ROUTER_CONFIG.maxRetries) {
       state.available = false;
-      state.cooldownUntil = Date.now() + ROUTER_CONFIG.cooldownMs;
-      console.log(`[LLM] Cooling down ${modelName} for ${ROUTER_CONFIG.cooldownMs / 1000}s`);
+      const cooldown = customCooldownMs ?? ROUTER_CONFIG.cooldownMs;
+      state.cooldownUntil = Date.now() + cooldown;
+      console.log(`[LLM] Cooling down ${modelName} for ${cooldown / 1000}s`);
     }
   }
 
@@ -75,23 +76,28 @@ class GroqModelRouter {
 
     let fallbackCount = 0;
 
+    if (!process.env.GROQ_API_KEY) {
+      throw new Error("Configuration Error: GROQ_API_KEY is not set in the environment.");
+    }
+
     for (const modelName of availableModels) {
       if (fallbackCount > 0) {
         console.log(`[LLM] Falling back to ${modelName}`);
       } else {
-        console.log(`[LLM] Trying model: ${modelName} for task: ${task}`);
+        console.log(`[LLM] Using model: ${modelName} for task: ${task}`);
       }
-
-      const llm = new ChatGroq({
-        model: modelName,
-        temperature: 0, // Deterministic by default for pipelines
-        maxRetries: 0,  // We handle retries/fallback manually
-        timeout: ROUTER_CONFIG.requestTimeoutMs,
-      });
 
       const startTime = Date.now();
 
       try {
+        const llm = new ChatGroq({
+          apiKey: process.env.GROQ_API_KEY,
+          model: modelName,
+          temperature: 0, // Deterministic by default for pipelines
+          maxRetries: 0,  // We handle retries/fallback manually
+          timeout: ROUTER_CONFIG.requestTimeoutMs,
+        });
+
         const response = await llm.invoke(messages);
         
         this.markSuccess(modelName);
@@ -109,7 +115,7 @@ class GroqModelRouter {
 
       } catch (err: unknown) {
         const error = err as Record<string, unknown>;
-        const errorMessage = typeof error?.message === 'string' ? error.message : '';
+        const errorMessage = typeof error?.message === 'string' ? error.message : String(err);
         const responseObj = error?.response as Record<string, unknown> | undefined;
         const statusCode = typeof responseObj?.status === 'number' 
           ? responseObj.status 
@@ -118,24 +124,29 @@ class GroqModelRouter {
         const isTimeout = errorMessage.toLowerCase().includes('timeout') || error?.name === 'TimeoutError';
         
         if (statusCode === 401) {
-          console.log(`[LLM] Model authentication failed`);
-          // Fail fast, an API key issue will break all models
+          console.error(`[LLM] Model ${modelName} authentication failed (401): ${errorMessage}`);
+          // 401 means the API key is invalid, so all models will fail.
           throw new Error("ORCA is temporarily unable to process the AI request. Please try again shortly.");
+        } else if (statusCode === 403) {
+          console.error(`[LLM] Model ${modelName} forbidden (403): ${errorMessage}`);
+          this.markFailure(modelName, false);
+        } else if (statusCode === 404) {
+          console.error(`[LLM] Model ${modelName} not found (404) - possibly deprecated or invalid ID: ${errorMessage}`);
+          this.markFailure(modelName, true, 365 * 24 * 3600 * 1000); // Mark as unavailable permanently (1 year) if not found
         } else if (statusCode === 400) {
-          console.log(`[LLM] Model ${modelName} rejected request (400)`);
-          // Bad request, likely context window or schema error, fail fast
-          throw new Error("ORCA is temporarily unable to process the AI request. Please try again shortly.");
+          console.error(`[LLM] Model ${modelName} rejected request (400): ${errorMessage}`);
+          this.markFailure(modelName, true); // Fallback to a different model in case of context length or strict prompt issues
         } else if (statusCode === 429 || errorMessage.toLowerCase().includes('rate limit')) {
-          console.log(`[LLM] Model ${modelName} rate limited`);
+          console.warn(`[LLM] Model ${modelName} rate limited (429): ${errorMessage}`);
           this.markFailure(modelName, true);
         } else if (statusCode && statusCode >= 500) {
-          console.log(`[LLM] Model ${modelName} provider failure (5xx)`);
-          this.markFailure(modelName, false); // Temporary failure
+          console.warn(`[LLM] Model ${modelName} provider failure (${statusCode}): ${errorMessage}`);
+          this.markFailure(modelName, false);
         } else if (isTimeout) {
-          console.log(`[LLM] Model ${modelName} timed out`);
+          console.warn(`[LLM] Model ${modelName} timed out: ${errorMessage}`);
           this.markFailure(modelName, false);
         } else {
-          console.log(`[LLM] Model ${modelName} encountered unknown error`);
+          console.error(`[LLM] Model ${modelName} encountered unknown error (Status ${statusCode}): ${errorMessage}`);
           this.markFailure(modelName, false);
         }
         

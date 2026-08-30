@@ -1,6 +1,6 @@
 export async function streamChat(
   query: string, 
-  location: { lat: number, lon: number } | undefined,
+  location: { lat: number, lon: number; locationName?: string } | undefined,
   onStep: (stepName: string, executedSteps: string[]) => void,
   onEnd: (finalResponse: string, riskAssessment: any) => void,
   onError: (error: string) => void
@@ -25,7 +25,7 @@ export async function streamChat(
       if (done) break;
 
       buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\\n\\n');
+      const lines = buffer.split('\n\n');
       buffer = lines.pop() || '';
 
       for (const line of lines) {
