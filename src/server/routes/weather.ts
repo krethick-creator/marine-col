@@ -18,7 +18,7 @@ router.get(
   '/current',
   validate(LocationSchema, 'query'),
   asyncHandler(async (req, res) => {
-    const { lat, lon } = req.query as unknown as z.infer<typeof LocationSchema>
+    const { lat, lon } = ((req as any).validatedQuery || req.query) as z.infer<typeof LocationSchema>
     const provider = getWeatherProvider()
     const data: CurrentWeather = await provider.getCurrentConditions({ lat, lon })
     const body: ApiSuccess<CurrentWeather> = {
@@ -36,7 +36,7 @@ router.get(
   '/forecast',
   validate(LocationSchema, 'query'),
   asyncHandler(async (req, res) => {
-    const { lat, lon, days } = req.query as unknown as z.infer<typeof LocationSchema>
+    const { lat, lon, days } = ((req as any).validatedQuery || req.query) as z.infer<typeof LocationSchema>
     const provider = getWeatherProvider()
     const data: WeatherForecast = await provider.getForecast({ lat, lon }, days ?? 3)
     const body: ApiSuccess<WeatherForecast> = {

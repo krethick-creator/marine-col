@@ -18,7 +18,7 @@ const TripSchema = z.object({
 
 // GET /api/trip/plan?lat=13.08&lon=80.27&days=3
 router.get('/plan', validate(TripSchema, 'query'), asyncHandler(async (req, res) => {
-  const { lat, lon, startLocationName, days, travelTimeMinutes } = req.query as unknown as z.infer<typeof TripSchema>
+  const { lat, lon, startLocationName, days, travelTimeMinutes } = ((req as any).validatedQuery || req.query) as z.infer<typeof TripSchema>
 
   const weather = getWeatherProvider()
   const forecast = await weather.getForecast({ lat, lon }, days)

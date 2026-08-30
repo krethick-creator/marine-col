@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronUp, Clock, Shield } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import type { OrcaRecommendation, StatusLevel } from '../../types'
 
 interface RecommendationCardProps {
@@ -46,7 +48,13 @@ export default function RecommendationCard({ rec }: RecommendationCardProps) {
       </div>
 
       {/* Summary */}
-      <div className="rec-summary">{rec.summary}</div>
+      {rec.summary && (
+        <div className="rec-summary markdown-body">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {rec.summary}
+          </ReactMarkdown>
+        </div>
+      )}
 
       {/* Return time window */}
       {rec.returnWindow && (

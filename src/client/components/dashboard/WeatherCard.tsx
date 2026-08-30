@@ -29,13 +29,13 @@ export default function WeatherCard() {
           <div>Wind: Loading...</div>
           <div>Wave: Loading...</div>
         </div>
-      ) : weatherError ? (
-        <div style={{ color: 'var(--status-nogo)', fontSize: 14 }}>
-          Weather data temporarily unavailable
-          {currentWeather && <div style={{ fontSize: 12, marginTop: 4 }}>Last successful update: {currentWeather.timestamp?.toLocaleTimeString()}</div>}
-        </div>
       ) : currentWeather ? (
         <>
+          {weatherError && (
+            <div style={{ color: 'var(--status-nogo)', fontSize: 12, marginBottom: 12, padding: 8, background: 'rgba(239,68,68,0.1)', borderRadius: 4 }}>
+              Failed to update weather: {weatherError}. Showing last known data.
+            </div>
+          )}
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
             <div style={{ fontSize: 36 }}>{currentWeather.temperature}°C</div>
             <div>
@@ -68,7 +68,9 @@ export default function WeatherCard() {
           </div>
         </>
       ) : (
-        <div style={{ color: 'var(--text-muted)' }}>Data unavailable</div>
+        <div style={{ color: 'var(--status-nogo)', fontSize: 14 }}>
+          {weatherError ? `Weather data unavailable: ${weatherError}` : 'Data unavailable'}
+        </div>
       )}
     </div>
   )

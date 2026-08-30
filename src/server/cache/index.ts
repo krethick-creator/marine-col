@@ -4,19 +4,20 @@ import { config } from 'dotenv';
 config(); // Load environment variables from .env
 
 if (!process.env.REDIS_URL) {
-  console.warn('REDIS_URL is not set. Falling back to memory cache or mock if applicable.');
+  console.log('Redis unavailable — running without cache.');
 }
 
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 
 // Create a Redis client instance
 export const redis = new Redis(redisUrl, {
-  // Retry strategy for robust reconnections
+  // Retry strategy for robust reconnections, but limit to prevent infinite loops when optional
   retryStrategy(times) {
-    const delay = Math.min(times * 50, 2000);
-    return delay;
+    if (times > 3) return null; // stop retrying after 3 times if it's strictly optional
+    return Math.min(times * 100, 1000);
   },
-  maxRetriesPerRequest: null,
+  maxRetriesPerRequest: 1,
+  enableOfflineQueue: false, // Don't block promises when disconnected
 });
 
 let hasLoggedRedisError = false;
@@ -24,7 +25,7 @@ let hasLoggedRedisError = false;
 redis.on('error', (err: any) => {
   if (err?.code === 'ECONNREFUSED' || err?.message?.includes('ECONNREFUSED')) {
     if (!hasLoggedRedisError) {
-      console.warn('⚠️ [Redis] Connection refused (is Redis running?). Caching will safely fall back to direct network calls.');
+      console.log('Redis unavailable — running without cache.');
       hasLoggedRedisError = true;
     }
   } else {

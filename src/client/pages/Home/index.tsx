@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Plus, Mic, Brain, Send } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import AgentTrace from '../../components/chat/AgentTrace'
 import RecommendationCard from '../../components/chat/RecommendationCard'
 import {
@@ -23,7 +25,7 @@ const suggestions = [
 const AGENT_STEP_DELAY_MS = 600
 
 export default function HomePage() {
-  const { messages, addMessage, isLoading, setLoading, setAgentIndex } = useChatStore()
+  const { messages, addMessage, updateMessage, isLoading, setLoading, setAgentIndex } = useChatStore()
   const [input, setInput] = useState('')
   const [agentSteps, setAgentSteps] = useState<AgentTraceStep[]>([])
   const [localAgentIndex, setLocalAgentIndex] = useState(-1)
@@ -93,7 +95,7 @@ export default function HomePage() {
     
     streamChat(
       query,
-      user?.location,
+      user?.location ? { ...user.location, locationName: user.locationName } : undefined,
       (nodeName, executedSteps) => {
         // Find which step this corresponds to
         let targetIndex = nodeMap[nodeName];
@@ -115,11 +117,14 @@ export default function HomePage() {
           formattedRecommendation = {
             level: riskAssessment.status, // GO, CAUTION, NO_GO
             confidence: 'HIGH' as const,
-            summary: riskAssessment.summary || finalResponse,
+            summary: riskAssessment.summary || '',
             reasoning: riskAssessment.reasoning || [],
             evidence: [
               { label: 'Wind Speed', value: riskAssessment.evidence?.windSpeed ? `${riskAssessment.evidence.windSpeed} km/h` : 'Unknown', icon: '💨' },
-              { label: 'Wave Height', value: riskAssessment.evidence?.waveHeight ? `${riskAssessment.evidence.waveHeight} m` : 'Unavailable', icon: '🌊' },
+              { label: 'Wave Height', value: riskAssessment.evidence?.waveHeight !== null && riskAssessment.evidence?.waveHeight !== undefined ? `${riskAssessment.evidence.waveHeight} m` : 'Unavailable', icon: '🌊' },
+              ...(riskAssessment.evidence?.seaState ? [{ label: 'Sea State', value: riskAssessment.evidence.seaState, icon: '⛵' }] : []),
+              ...(riskAssessment.evidence?.swellPeriod ? [{ label: 'Swell Period', value: `${riskAssessment.evidence.swellPeriod} s`, icon: '⏱️' }] : []),
+              ...(riskAssessment.evidence?.currentSpeed !== null && riskAssessment.evidence?.currentSpeed !== undefined ? [{ label: 'Current Speed', value: `${riskAssessment.evidence.currentSpeed} km/h`, icon: '🧭' }] : []),
             ],
             dataFreshness: {
               weather: 'Just now',
@@ -131,11 +136,8 @@ export default function HomePage() {
           }
         }
 
-        addMessage({
-          id: `ans-${Date.now()}`,
-          role: 'assistant',
+        updateMessage(traceId, {
           content: finalResponse,
-          timestamp: new Date(),
           recommendation: formattedRecommendation,
           isMockData: false,
         });
@@ -146,11 +148,8 @@ export default function HomePage() {
         setAgentSteps([]);
       },
       (err) => {
-        addMessage({
-          id: `ans-${Date.now()}`,
-          role: 'assistant',
+        updateMessage(traceId, {
           content: `Sorry, I encountered an error: ${err}`,
-          timestamp: new Date(),
           isMockData: false,
         });
         setLoading(false);
@@ -159,7 +158,7 @@ export default function HomePage() {
         setAgentSteps([]);
       }
     )
-  }, [addMessage, setLoading, setAgentIndex, user?.location])
+  }, [addMessage, updateMessage, setLoading, setAgentIndex, user?.location])
 
   // ─── Submit handler ────────────────────────────────────────────────
   const handleSubmit = useCallback(async () => {
@@ -275,13 +274,12 @@ function MessageGroup({
 
       <div className={`message-bubble ${msg.role}`}>
         <MessageContent content={msg.content} />
+        {msg.recommendation && (
+          <div style={{ marginTop: 16, borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 16, width: '100%', maxWidth: 560 }}>
+            <RecommendationCard rec={msg.recommendation} />
+          </div>
+        )}
       </div>
-
-      {msg.recommendation && (
-        <div style={{ marginTop: 8, width: '100%', maxWidth: 560 }}>
-          <RecommendationCard rec={msg.recommendation} />
-        </div>
-      )}
 
       <div style={{ fontSize: 10.5, color: 'var(--text-light)', paddingLeft: 4, marginTop: 2 }}>
         {msg.timestamp.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
@@ -292,14 +290,13 @@ function MessageGroup({
 }
 
 function MessageContent({ content }: { content: string }) {
-  const parts = content.split(/\*\*(.*?)\*\*/g)
+  if (content === '__AGENT_TRACE__') return null
+  
   return (
-    <>
-      {parts.map((part, i) =>
-        i % 2 === 1
-          ? <strong key={i} style={{ color: 'inherit', fontWeight: 700 }}>{part}</strong>
-          : <span key={i}>{part}</span>
-      )}
-    </>
+    <div className="markdown-body">
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+        {content}
+      </ReactMarkdown>
+    </div>
   )
 }
