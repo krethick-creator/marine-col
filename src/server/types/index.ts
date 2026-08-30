@@ -20,9 +20,9 @@ export interface CurrentWeather {
   windDirection: string
   humidity: number
   visibility: number
-  waveHeight: number | null       // metres
-  swellPeriod: number | null      // seconds
-  seaState: string | null
+  waveHeight: number       // metres
+  swellPeriod: number      // seconds
+  seaState: string
   rainProbability: number  // 0–100
   lightningRisk: boolean
   location: string
@@ -34,7 +34,7 @@ export interface HourlyWeather {
   time: Date
   temperature: number
   windSpeed: number
-  waveHeight: number | null
+  waveHeight: number
   precipitation: number
   condition: string
 }
@@ -44,7 +44,7 @@ export interface DailyWeather {
   high: number
   low: number
   windSpeedMax: number
-  waveHeightMax: number | null
+  waveHeightMax: number
   condition: string
   status: StatusLevel
   safeWindow?: { start: string; end: string }
@@ -141,8 +141,8 @@ export interface Advisory {
 export interface RiskInputs {
   weather: {
     windSpeed: number
-    waveHeight: number | null
-    seaState: string | null
+    waveHeight: number
+    seaState: string
     rainProbability: number
     lightningRisk: boolean
     hourly: HourlyWeather[]
@@ -339,3 +339,15 @@ export interface ApiError {
 }
 
 export type ApiResponse<T> = ApiSuccess<T> | ApiError
+
+// ─── Route Agent Types ────────────────────────────────────────────────
+export type {
+  BoatProfile,
+  Zone,
+  SafeRouteResult,
+  WaypointTimelineItem,
+  RouteAgentOptions,
+  GridNode,
+  NodeRisk,
+} from '../agents/routeAgent'
+
