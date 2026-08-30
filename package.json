@@ -1,0 +1,22 @@
+{
+  "name": "orca-alerts-module",
+  "private": true,
+  "version": "2.0.0",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "socket.io": "^4.8.1",
+    "dotenv": "^16.4.7"
+  },
+  "optionalDependencies": {
+    "web-push": "^3.6.7",
+    "twilio": "^5.7.0"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node test/alertProvider.test.js"
+  }
+}
