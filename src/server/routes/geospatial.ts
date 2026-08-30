@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { z } from 'zod'
+import { Pool } from 'pg'
 import { getGeospatialProvider } from '../services/geospatial'
 
 const router = Router()
@@ -25,6 +26,40 @@ router.get('/', async (req: Request, res: Response) => {
   } catch (err) {
     console.error('Geospatial route error:', err)
     res.status(500).json({ error: 'Geospatial lookup failed' })
+  }
+})
+
+let _featuresPool: Pool | null = null
+function getFeaturesPool(): Pool {
+  if (!_featuresPool) {
+    _featuresPool = new Pool({ connectionString: process.env.DATABASE_URL })
+  }
+  return _featuresPool
+}
+
+router.get('/features', async (_req: Request, res: Response) => {
+  try {
+    const pool = getFeaturesPool()
+    const [boundaries, fishingZones] = await Promise.all([
+      pool.query('SELECT id, name, type, ST_AsGeoJSON(geometry) AS geojson FROM boundaries'),
+      pool.query('SELECT id, name, suitability_score, ST_AsGeoJSON(geometry) AS geojson FROM fishing_zones'),
+    ])
+
+    res.json({
+      boundaries: boundaries.rows.map((r) => ({
+        type: 'Feature',
+        properties: { id: r.id, name: r.name, type: r.type },
+        geometry: JSON.parse(r.geojson),
+      })),
+      fishingZones: fishingZones.rows.map((r) => ({
+        type: 'Feature',
+        properties: { id: r.id, name: r.name, suitabilityScore: r.suitability_score },
+        geometry: JSON.parse(r.geojson),
+      })),
+    })
+  } catch (err) {
+    console.error('Geospatial features route error:', err)
+    res.status(500).json({ error: 'Failed to fetch geospatial features' })
   }
 })
 
