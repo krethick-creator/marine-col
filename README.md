@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # ORCA Alerts & Warnings — isolated real-time module
 
 This module is designed to be mounted into the existing ORCA backend without replacing the existing dashboard, routes, or HTTP server.
@@ -76,3 +77,7 @@ node test/alertProvider.test.js
 
 ## Important limitation
 This module provides live model data and derives application warnings from thresholds. It does NOT claim that an alert is an official IMD/INCOIS advisory. For production safety/navigation use, an authorized official warning feed should be added as a separate provider and shown as the authoritative source.
+=======
+# marine-col
+ocra
+>>>>>>> 78d6419db5679492b518e7194dba6f78579fc796
