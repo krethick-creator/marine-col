@@ -1,0 +1,10 @@
+[33m3f11320e[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mkrethick[m[33m)[m Merge main and integrate Alert Agent
+[33mab90eab9[m[33m ([m[1;31morigin/krethick[m[33m)[m Fix trip planner route and map issues
+[33meb070626[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m Merge pull request #3 from krethick-creator/satellite-agent
+[33m2a0778c1[m[33m ([m[1;31morigin/satellite-agent[m[33m)[m feat: integrate satellite agent
+[33mccb3ad4f[m Merge remote-tracking branch 'origin/krethick' into satellite-agent
+[33m49c2a682[m Add ORCA real-time alerts
+[33m122860f2[m Add ORCA real-time alert system
+[33m5554ba19[m Merge remote-tracking branch 'origin/main' into krethick
+[33m579eb320[m Merge abhishek route agent into krethick
+[33mec081a6d[m Merge remote-tracking branch 'origin/abhishek' into krethick

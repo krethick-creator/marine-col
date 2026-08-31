@@ -1,4 +1,4 @@
-// src/server/services/geospatial/PostGISGeospatialProvider.ts
+﻿// src/server/services/geospatial/PostGISGeospatialProvider.ts
 // ------------------------------------------------
 // Real implementation of GeospatialProvider, querying PostGIS tables
 // (fishing_zones, restricted_zones, marine_protected_areas, boundaries)
@@ -6,7 +6,7 @@
 
 import { Pool } from "pg";
 import type { GeospatialProvider } from "./GeospatialProvider";
-import type { GeospatialSnapshot, LatLon } from "../../types";
+import type { GeospatialSnapshot, LatLon, ProviderResult } from "../../types";
 
 let _pool: Pool | null = null;
 function getPool(): Pool {
@@ -24,53 +24,63 @@ export class PostGISGeospatialProvider implements GeospatialProvider {
     origin: LatLon,
     destination: LatLon,
     waypoints: LatLon[] = []
-  ): Promise<GeospatialSnapshot> {
-    const routePoints = [origin, ...waypoints, destination]
-      .map((p) => `${p.lon} ${p.lat}`)
-      .join(", ");
-    const routeLineString = `LINESTRING(${routePoints})`;
+  ): Promise<ProviderResult<GeospatialSnapshot>> {
+    try {
+      const routePoints = [origin, ...waypoints, destination]
+        .map((p) => `${p.lon} ${p.lat}`)
+        .join(', ');
+      const routeLineString = `LINESTRING(${routePoints})`;
 
-    const intersectsQuery = `
-      SELECT name, type FROM restricted_zones
-      WHERE ST_Intersects(geometry, ST_GeomFromText($1, 4326))
-      UNION ALL
-      SELECT name, 'MPA' AS type FROM marine_protected_areas
-      WHERE ST_Intersects(geometry, ST_GeomFromText($1, 4326))
-    `;
+      const intersectsQuery = `
+        SELECT name, type FROM restricted_zones
+        WHERE ST_Intersects(geometry, ST_GeomFromText($1, 4326))
+        UNION ALL
+        SELECT name, 'MPA' AS type FROM marine_protected_areas
+        WHERE ST_Intersects(geometry, ST_GeomFromText($1, 4326))
+      `;
 
-    const nearestBoundaryQuery = `
-      SELECT
-        ST_Distance(
-          geometry::geography,
-          ST_GeomFromText($1, 4326)::geography
-        ) * 0.000539957 AS distance_nm
-      FROM boundaries
-      ORDER BY geometry <-> ST_GeomFromText($1, 4326)
-      LIMIT 1
-    `;
+      const nearestBoundaryQuery = `
+        SELECT
+          ST_Distance(
+            geometry::geography,
+            ST_GeomFromText($1, 4326)::geography
+          ) * 0.000539957 AS distance_nm
+        FROM boundaries
+        ORDER BY geometry <-> ST_GeomFromText($1, 4326)
+        LIMIT 1
+      `;
 
-    const [intersectResult, boundaryResult] = await Promise.all([
-      getPool().query(intersectsQuery, [routeLineString]),
-      getPool().query(nearestBoundaryQuery, [routeLineString]),
-    ]);
+      const [intersectResult, boundaryResult] = await Promise.all([
+        getPool().query(intersectsQuery, [routeLineString]),
+        getPool().query(nearestBoundaryQuery, [routeLineString]),
+      ]);
 
-    const restrictedZonesOnRoute = intersectResult.rows.map((r) => r.name as string);
+      const restrictedZonesOnRoute = intersectResult.rows.map((r) => r.name as string);
+      const distanceToBoundaryNm = boundaryResult.rows[0]
+        ? parseFloat(boundaryResult.rows[0].distance_nm.toFixed(1))
+        : 999;
 
-    const distanceToBoundaryNm = boundaryResult.rows[0]
-      ? parseFloat(boundaryResult.rows[0].distance_nm.toFixed(1))
-      : 999;
+      const routeNearBoundary = distanceToBoundaryNm < 60;
+      const veryNearBoundary = distanceToBoundaryNm < 10;
 
-    const routeNearBoundary = distanceToBoundaryNm < 60;
-    const veryNearBoundary = distanceToBoundaryNm < 10;
-
-    return {
-      routeIntersectsRestricted: restrictedZonesOnRoute.length > 0,
-      routeNearBoundary,
-      distanceToBoundaryNm,
-      restrictedZonesOnRoute,
-      alternativeRouteAvailable: routeNearBoundary && !veryNearBoundary,
-      isMockData: false,
-    };
+      const snapshot: GeospatialSnapshot = {
+        routeIntersectsRestricted: restrictedZonesOnRoute.length > 0,
+        routeNearBoundary,
+        distanceToBoundaryNm,
+        restrictedZonesOnRoute,
+        alternativeRouteAvailable: routeNearBoundary && !veryNearBoundary,
+        isMockData: false,
+        dataSource: this.dataSource,
+        issuedAt: new Date(),
+        providerStatus: 'REAL_DATA_SUCCESS',
+      };
+      const result: ProviderResult<GeospatialSnapshot> = { data: snapshot, status: 'REAL_DATA_SUCCESS' };
+      return result;
+    } catch (err) {
+      console.warn('[Geospatial] analyseRoute provider error:', err);
+      const result: ProviderResult<GeospatialSnapshot> = { status: 'PROVIDER_UNAVAILABLE' };
+      return result;
+    }
   }
 
   async distanceToBoundaryNm(location: LatLon): Promise<number> {

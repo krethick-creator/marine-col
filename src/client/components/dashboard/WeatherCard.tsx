@@ -1,7 +1,7 @@
 import { useAppStore } from '../../store'
 
 export default function WeatherCard() {
-  const { currentWeather, weatherLoading, weatherError } = useAppStore()
+  const { currentWeather, weatherLoading, weatherError, user } = useAppStore()
 
   return (
     <div className="glass-card" style={{ padding: 24, borderTop: '2px solid var(--accent-blue)' }}>
@@ -9,7 +9,7 @@ export default function WeatherCard() {
         <div>
           <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-main)' }}>Marine Weather</h3>
           <div style={{ fontSize: 13, color: 'var(--text-light)', marginTop: 4 }}>
-            {currentWeather?.location || 'Chennai Coast'}
+            {user?.locationName || currentWeather?.location || 'Select Location'}
           </div>
         </div>
         {currentWeather?.isMockData ? (

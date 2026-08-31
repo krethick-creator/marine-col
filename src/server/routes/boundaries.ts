@@ -38,11 +38,11 @@ const RouteSchema = z.object({
 // Checks if a route intersects restricted zones or approaches the boundary
 router.get('/analyse-route', validate(RouteSchema, 'query'), asyncHandler(async (req, res) => {
   const { originLat, originLon, destLat, destLon } = req.query as unknown as z.infer<typeof RouteSchema>
-  const data = await getGeospatialProvider().analyseRoute(
+  const result = await getGeospatialProvider().analyseRoute(
     { lat: originLat, lon: originLon },
     { lat: destLat,   lon: destLon   }
   )
-  const body: ApiSuccess<typeof data> = { ok: true, data, isMockData: data.isMockData, timestamp: new Date().toISOString() }
+  const body: ApiSuccess<typeof result.data> = { ok: true, data: result.data, isMockData: result.status === 'MOCK_DATA', timestamp: new Date().toISOString() }
   res.json(body)
 }))
 

@@ -6,7 +6,7 @@
   "scripts": {
     "dev:client:vite": "vite",
     "dev:client": "wait-on tcp:4000 && npm run dev:client:vite",
-    "dev:server": "tsx src/server/index.ts",
+    "dev:server": "tsx --watch src/server/index.ts",
     "dev": "concurrently \"npm run dev:client\" \"npm run dev:server\"",
     "build:client": "tsc -b && vite build",
     "build:server": "tsc --project tsconfig.server.json",

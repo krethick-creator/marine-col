@@ -15,6 +15,8 @@ import DashboardPage from './pages/Dashboard'
 import LiveMapPage from './pages/LiveMap'
 import TripPlannerPage from './pages/TripPlanner'
 import WeatherOceanPage from './pages/WeatherOcean'
+import ClimatePage from './pages/Climate'
+import ReportsPage from './pages/Reports'
 import FishingZonesPage from './pages/FishingZones'
 import AlertsPage from './pages/Alerts'
 import BoundariesPage from './pages/Boundaries'
@@ -51,6 +53,7 @@ const PublicRoute = () => {
 };
 
 import { useAppStore } from './store'
+import LocationPromptModal from './components/ui/LocationPromptModal'
 
 export default function App() {
   const checkAuth = useAuthStore(state => state.clearError); // Fix infinite loop
@@ -79,6 +82,9 @@ export default function App() {
       {/* Animated ocean background - fixed behind everything */}
       <OceanBackground />
 
+      {/* Global Location Prompt Modal */}
+      <LocationPromptModal />
+
       <Routes>
         {/* Root Redirect */}
         <Route path="/" element={<Navigate to="/home" replace />} />
@@ -99,6 +105,8 @@ export default function App() {
           <Route path="/map"        element={<LiveMapPage />} />
           <Route path="/planner"    element={<TripPlannerPage />} />
           <Route path="/weather"    element={<WeatherOceanPage />} />
+          <Route path="/climate"    element={<ClimatePage />} />
+          <Route path="/reports"    element={<ReportsPage />} />
           <Route path="/fishing"    element={<FishingZonesPage />} />
           <Route path="/alerts"     element={<AlertsPage />} />
           <Route path="/boundaries" element={<BoundariesPage />} />

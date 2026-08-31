@@ -1,8 +1,8 @@
 export async function streamChat(
-  query: string, 
+  query: string,
   location: { lat: number, lon: number; locationName?: string } | undefined,
   onStep: (stepName: string, executedSteps: string[]) => void,
-  onEnd: (finalResponse: string, riskAssessment: any) => void,
+  onEnd: (finalResponse: string, riskAssessment: any, routePlan: any, providerStatuses: Record<string, { status: string; error?: string }>) => void,
   onError: (error: string) => void
 ) {
   try {
@@ -37,7 +37,7 @@ export async function streamChat(
               return;
             }
             if (data.node === 'END') {
-              onEnd(data.finalResponse, data.riskAssessment);
+              onEnd(data.finalResponse, data.riskAssessment, data.routePlan, data.providerStatuses || {});
             } else if (data.node) {
               onStep(data.node, data.executedSteps || []);
             }
@@ -51,3 +51,4 @@ export async function streamChat(
     onError(err.message || 'Failed to communicate with ORCA.');
   }
 }
+

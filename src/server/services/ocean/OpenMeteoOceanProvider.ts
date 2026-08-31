@@ -1,5 +1,5 @@
-import type { OceanProvider } from './OceanProvider';
-import type { OceanSnapshot, FishingZone, LatLon } from '../../types';
+﻿import type { OceanProvider } from './OceanProvider';
+import type { OceanSnapshot, FishingZone, LatLon, ProviderResult } from '../../types';
 import { redis } from '../../cache';
 
 function degreesToCompass(deg: number | null | undefined): string | null {
@@ -53,52 +53,60 @@ export class OpenMeteoOceanProvider implements OceanProvider {
     return data;
   }
 
-  public async getSnapshot(location: LatLon): Promise<OceanSnapshot> {
-    const lat = location.lat;
-    const lon = location.lon;
-    const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lon}&current=wave_height,wave_period,wave_direction,swell_wave_height,swell_wave_period,swell_wave_direction,ocean_current_velocity,ocean_current_direction`;
-    const cacheKey = `ocean:mar:${lat.toFixed(2)}:${lon.toFixed(2)}`;
+  public async getSnapshot(location: LatLon): Promise<ProviderResult<OceanSnapshot>> {
+    try {
+      const lat = location.lat;
+      const lon = location.lon;
+      const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lon}&current=wave_height,wave_period,wave_direction,swell_wave_height,swell_wave_period,swell_wave_direction,ocean_current_velocity,ocean_current_direction`;
+      const cacheKey = `ocean:mar:${lat.toFixed(2)}:${lon.toFixed(2)}`;
 
-    console.log(`[Ocean] Using Open-Meteo Marine Provider (REAL DATA)`);
-    console.log(`[Ocean] Coordinates: ${lat.toFixed(4)}, ${lon.toFixed(4)}`);
+      console.log(`[Ocean] Using Open-Meteo Marine Provider (REAL DATA)`);
+      console.log(`[Ocean] Coordinates: ${lat.toFixed(4)}, ${lon.toFixed(4)}`);
 
-    const data = await this.fetchWithCache(url, cacheKey);
-    const c = data?.current || {};
+      const data = await this.fetchWithCache(url, cacheKey);
+      const c = data?.current || {};
 
-    const waveHeight = typeof c.wave_height === 'number' ? c.wave_height : null;
-    const swellPeriod = typeof c.swell_wave_period === 'number' ? c.swell_wave_period : (typeof c.wave_period === 'number' ? c.wave_period : null);
-    const waveDirection = typeof c.wave_direction === 'number' ? c.wave_direction : null;
-    const swellDirection = degreesToCompass(c.swell_wave_direction ?? c.wave_direction);
-    const currentSpeed = typeof c.ocean_current_velocity === 'number' ? c.ocean_current_velocity : null;
-    const currentDirection = degreesToCompass(c.ocean_current_direction);
-    const seaState = calculateSeaState(waveHeight);
+      const waveHeight = typeof c.wave_height === 'number' ? c.wave_height : null;
+      const swellPeriod = typeof c.swell_wave_period === 'number' ? c.swell_wave_period : (typeof c.wave_period === 'number' ? c.wave_period : null);
+      const waveDirection = typeof c.wave_direction === 'number' ? c.wave_direction : null;
+      const swellDirection = degreesToCompass(c.swell_wave_direction ?? c.wave_direction);
+      const currentSpeed = typeof c.ocean_current_velocity === 'number' ? c.ocean_current_velocity : null;
+      const currentDirection = degreesToCompass(c.ocean_current_direction);
+      const seaState = calculateSeaState(waveHeight);
 
-    console.log(`[Ocean] Wave height: ${waveHeight !== null ? `${waveHeight} m` : 'null'}`);
-    console.log(`[Ocean] Swell period: ${swellPeriod !== null ? `${swellPeriod} s` : 'null'}`);
-    console.log(`[Ocean] Wave direction: ${waveDirection !== null ? `${waveDirection}°` : 'null'}`);
-    console.log(`[Ocean] Marine data retrieved successfully`);
+      console.log(`[Ocean] Wave height: ${waveHeight !== null ? `${waveHeight} m` : 'null'}`);
+      console.log(`[Ocean] Swell period: ${swellPeriod !== null ? `${swellPeriod} s` : 'null'}`);
+      console.log(`[Ocean] Wave direction: ${waveDirection !== null ? `${waveDirection}Â°` : 'null'}`);
+      console.log(`[Ocean] Marine data retrieved successfully`);
 
-    return {
-      sst: null,
-      chlorophyll: null,
-      waveHeight,
-      swellPeriod,
-      waveDirection,
-      swellDirection,
-      currentSpeed,
-      currentDirection,
-      seaState,
-      units: {
-        waveHeight: 'm',
-        swellPeriod: 's',
-        waveDirection: '°',
-        currentSpeed: 'km/h',
-        currentDirection: '°'
-      },
-      isMockData: false,
-      dataSource: this.dataSource,
-      timestamp: new Date()
-    };
+      const snapshot: OceanSnapshot = {
+        sst: null,
+        chlorophyll: null,
+        waveHeight,
+        swellPeriod,
+        waveDirection,
+        swellDirection,
+        currentSpeed,
+        currentDirection,
+        seaState,
+        units: {
+          waveHeight: 'm',
+          swellPeriod: 's',
+          waveDirection: 'Â°',
+          currentSpeed: 'km/h',
+          currentDirection: 'Â°'
+        },
+        isMockData: false,
+        dataSource: this.dataSource,
+        timestamp: new Date()
+      };
+
+      return { data: snapshot, status: 'REAL_DATA_SUCCESS' };
+    } catch (error) {
+      console.warn('[Ocean] Open-Meteo Ocean provider failed:', error);
+      // Return provider unavailable with no data
+      return { status: 'PROVIDER_UNAVAILABLE', error: 'Ocean provider unavailable' };
+    }
   }
 
   public async getPFZZones(_location: LatLon, _radiusKm = 100): Promise<FishingZone[]> {

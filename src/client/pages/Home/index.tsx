@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import AgentTrace from '../../components/chat/AgentTrace'
 import RecommendationCard from '../../components/chat/RecommendationCard'
+import ChatRouteMap from '../../components/chat/ChatRouteMap'
 import {
   mockAgentSteps,
   getMockResponseForQuery,
@@ -79,6 +80,7 @@ export default function HomePage() {
     const nodeMap: Record<string, number> = {
       'plannerAgent': 0,
       'dataDiscoveryAgent': 1,
+      'agentRouterNode': 1,
       'weatherAgent': 2,
       'oceanAgent': 3,
       'geospatialAgent': 3,
@@ -106,16 +108,17 @@ export default function HomePage() {
           setAgentIndex(targetIndex);
         }
       },
-      (finalResponse, riskAssessment) => {
+      (finalResponse, riskAssessment, routePlan, providerStatuses) => {
         setLocalAgentIndex(steps.length);
         setAgentIndex(steps.length);
         
         let formattedRecommendation = undefined;
         
         if (riskAssessment) {
-          // Normalize the format from the backend to match UI expectations
+          // riskAgent now returns { level, reasoning, evidence }
+          const riskLevel = riskAssessment.level ?? riskAssessment.status ?? 'CAUTION';
           formattedRecommendation = {
-            level: riskAssessment.status, // GO, CAUTION, NO_GO
+            level: riskLevel, // GO, CAUTION, NO_GO
             confidence: 'HIGH' as const,
             summary: riskAssessment.summary || '',
             reasoning: riskAssessment.reasoning || [],
@@ -127,18 +130,19 @@ export default function HomePage() {
               ...(riskAssessment.evidence?.currentSpeed !== null && riskAssessment.evidence?.currentSpeed !== undefined ? [{ label: 'Current Speed', value: `${riskAssessment.evidence.currentSpeed} km/h`, icon: '🧭' }] : []),
             ],
             dataFreshness: {
-              weather: 'Just now',
-              marine: 'Just now',
-              satellite: 'Just now',
+              weather: providerStatuses?.weather?.status === 'REAL_DATA_SUCCESS' ? 'Just now' : providerStatuses?.weather?.status ?? 'Unknown',
+              marine: providerStatuses?.ocean?.status === 'REAL_DATA_SUCCESS' ? 'Just now' : providerStatuses?.ocean?.status ?? 'Unknown',
+              satellite: providerStatuses?.satellite?.status === 'REAL_DATA_SUCCESS' ? 'Just now' : providerStatuses?.satellite?.status ?? 'Unknown',
               updatedAt: new Date()
             },
-            isMockData: false
+            isMockData: Object.values(providerStatuses || {}).some((p) => p.status === 'MOCK_DATA')
           }
         }
 
         updateMessage(traceId, {
           content: finalResponse,
           recommendation: formattedRecommendation,
+          routePlan: routePlan && routePlan.success && routePlan.waypoints?.length > 0 ? routePlan : undefined,
           isMockData: false,
         });
 
@@ -277,6 +281,11 @@ function MessageGroup({
         {msg.recommendation && (
           <div style={{ marginTop: 16, borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 16, width: '100%', maxWidth: 560 }}>
             <RecommendationCard rec={msg.recommendation} />
+          </div>
+        )}
+        {msg.routePlan && (
+          <div style={{ marginTop: 12, width: '100%', maxWidth: 560 }}>
+            <ChatRouteMap routePlan={msg.routePlan} />
           </div>
         )}
       </div>

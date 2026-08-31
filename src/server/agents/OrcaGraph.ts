@@ -1,8 +1,9 @@
-import { StateGraph, START, END, CompiledStateGraph } from '@langchain/langgraph';
+﻿import { StateGraph, START, END, CompiledStateGraph } from '@langchain/langgraph';
 import { OrcaState } from './OrcaState';
 import { 
   plannerAgent, 
-  dataDiscoveryAgent, 
+  dataDiscoveryAgent,
+  agentRouterNode,
   weatherAgent, 
   oceanAgent, 
   satelliteAgent, 
@@ -13,10 +14,14 @@ import {
   synthesisAgent 
 } from './nodes';
 
-// Initialize the StateGraph with our schema and chain everything so TS infers node names
+// ─── ORCA Agent Graph ──────────────────────────────────────────────────────────
+// Linear chain — each agent runs exactly once per request.
+// Deduplication is enforced via contextData._executedAgents (request-scoped Set).
+// The agentRouterNode initialises the dedup set and logs required agents.
 const graphBuilder = new StateGraph(OrcaState)
   .addNode('plannerAgent', plannerAgent)
   .addNode('dataDiscoveryAgent', dataDiscoveryAgent)
+  .addNode('agentRouterNode', agentRouterNode)
   .addNode('weatherAgent', weatherAgent)
   .addNode('oceanAgent', oceanAgent)
   .addNode('satelliteAgent', satelliteAgent)
@@ -27,7 +32,8 @@ const graphBuilder = new StateGraph(OrcaState)
   .addNode('synthesisAgent', synthesisAgent)
   .addEdge(START, 'plannerAgent')
   .addEdge('plannerAgent', 'dataDiscoveryAgent')
-  .addEdge('dataDiscoveryAgent', 'weatherAgent')
+  .addEdge('dataDiscoveryAgent', 'agentRouterNode')
+  .addEdge('agentRouterNode', 'weatherAgent')
   .addEdge('weatherAgent', 'oceanAgent')
   .addEdge('oceanAgent', 'geospatialAgent')
   .addEdge('geospatialAgent', 'alertAgent')

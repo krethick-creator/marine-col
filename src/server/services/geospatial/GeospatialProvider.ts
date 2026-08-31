@@ -1,4 +1,4 @@
-import type { GeospatialSnapshot, LatLon } from '../../types'
+﻿import type { GeospatialSnapshot, LatLon, ProviderResult } from '../../types'
 
 export interface GeospatialProvider {
   readonly isMock: boolean
@@ -7,7 +7,7 @@ export interface GeospatialProvider {
     origin: LatLon,
     destination: LatLon,
     waypoints?: LatLon[]
-  ): Promise<GeospatialSnapshot>
+  ): Promise<ProviderResult<GeospatialSnapshot>>;
   distanceToBoundaryNm(location: LatLon): Promise<number>
   nearestFishingZoneKm(location: LatLon): Promise<number>
 }

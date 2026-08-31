@@ -1,4 +1,6 @@
-import { mockAlerts } from '../../services/mockProviders/mockData'
+import { useEffect, useState } from 'react'
+import { fetchActiveAlerts } from '../../services/api/alertService'
+import { useAppStore } from '../../store'
 import type { Alert } from '../../types'
 
 const severityConfig: Record<Alert['severity'], { color: string; bg: string; border: string; icon: string }> = {
@@ -9,6 +11,22 @@ const severityConfig: Record<Alert['severity'], { color: string; bg: string; bor
 }
 
 export default function AlertsPage() {
+  const user = useAppStore(state => state.user)
+  const [alerts, setAlerts] = useState<Alert[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (user?.location?.lat && user?.location?.lon) {
+      setLoading(true)
+      fetchActiveAlerts(user.location.lat, user.location.lon)
+        .then(data => {
+          setAlerts(data)
+          setLoading(false)
+        })
+        .catch(() => setLoading(false))
+    }
+  }, [user?.location])
+
   return (
     <div className="page-shell">
       <div className="page-header">
@@ -18,7 +36,11 @@ export default function AlertsPage() {
         </div>
       </div>
 
-      {mockAlerts.length === 0 ? (
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 40, color: 'rgba(255,255,255,0.6)' }}>
+          Loading active alerts...
+        </div>
+      ) : alerts.length === 0 ? (
         <div className="glass-card" style={{ padding: 40, textAlign: 'center' }}>
           <div style={{ fontSize: 36, marginBottom: 12 }}>✅</div>
           <div style={{ color: '#4ade80', fontWeight: 600 }}>No active alerts</div>
@@ -26,8 +48,8 @@ export default function AlertsPage() {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {mockAlerts.map((alert: Alert) => {
-            const cfg = severityConfig[alert.severity]
+          {alerts.map((alert: Alert) => {
+            const cfg = severityConfig[alert.severity] || severityConfig.MEDIUM
             return (
               <div key={alert.id} className="glass-card" style={{ padding: 18, background: cfg.bg, borderColor: cfg.border }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>

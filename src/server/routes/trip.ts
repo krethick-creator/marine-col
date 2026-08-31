@@ -23,7 +23,13 @@ router.get('/plan', validate(TripSchema, 'query'), asyncHandler(async (req, res)
   const { lat, lon, startLocationName, days, travelTimeMinutes } = ((req as any).validatedQuery || req.query) as z.infer<typeof TripSchema>
 
   const weather = getWeatherProvider()
-  const forecast = await weather.getForecast({ lat, lon }, days)
+  const forecastResult = await weather.getForecast({ lat, lon }, days)
+  const forecast = forecastResult.data
+
+  if (!forecast) {
+    res.status(503).json({ ok: false, error: 'Weather forecast provider is temporarily unavailable.' })
+    return
+  }
 
   const dayPlans: DayPlan[] = forecast.daily.slice(0, days).map((day, i) => {
     const isBadDay   = day.waveHeightMax > 2.5 || day.windSpeedMax > 30
@@ -66,7 +72,7 @@ router.get('/plan', validate(TripSchema, 'query'), asyncHandler(async (req, res)
     days,
     dayPlans,
     overallStatus,
-    isMockData: forecast.isMockData,
+    isMockData: forecastResult.status === 'MOCK_DATA',
     generatedAt: new Date(),
   }
 
@@ -142,7 +148,7 @@ router.post('/analyze', validate(TripAnalyzeSchema, 'body'), asyncHandler(async 
   const validDepDate = !isNaN(depDate.getTime()) ? depDate : new Date()
 
   // Concurrently execute Weather, Ocean, Geospatial & Route agents
-  const [weatherSnap, oceanSnap, boundaryDist, fishingZoneKm, routeAnalysis, routeResult] = await Promise.all([
+  const [weatherResult, oceanResult, boundaryDist, fishingZoneKm, routeAnalysisResult, routeResult] = await Promise.all([
     weatherProv.getCurrentConditions({ lat: originLat, lon: originLon }).catch(() => null),
     oceanProv.getSnapshot({ lat: originLat, lon: originLon }).catch(() => null),
     geoProv.distanceToBoundaryNm({ lat: originLat, lon: originLon }).catch(() => 999),
@@ -150,6 +156,13 @@ router.post('/analyze', validate(TripAnalyzeSchema, 'body'), asyncHandler(async 
     geoProv.analyseRoute({ lat: originLat, lon: originLon }, { lat: destLat, lon: destLon }).catch(() => null),
     getSafeRoute(originLat, originLon, destLat, destLon, { boatKey, departureTime: validDepDate }).catch(() => null)
   ])
+
+  // Unwrap ProviderResults
+  const weatherSnap = weatherResult?.data ?? null
+  const oceanSnap = oceanResult?.data ?? null
+  const routeAnalysis = routeAnalysisResult?.data ?? null
+  const isMockWeather = weatherResult?.status === 'MOCK_DATA'
+  const isMockOcean = oceanResult?.status === 'MOCK_DATA'
 
   // Determine overall risk recommendation
   const reasons: string[] = []
@@ -251,7 +264,7 @@ router.post('/analyze', validate(TripAnalyzeSchema, 'body'), asyncHandler(async 
   const response: ApiSuccess<typeof analysisData> = {
     ok: true,
     data: analysisData,
-    isMockData: geoProv.isMock || weatherSnap?.isMockData || false,
+    isMockData: geoProv.isMock || isMockWeather || isMockOcean,
     timestamp: new Date().toISOString(),
   }
 

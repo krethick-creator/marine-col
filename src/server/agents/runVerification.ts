@@ -232,6 +232,53 @@ async function runTests() {
     `Error reported: ${invalidCoordResult.error}`
   )
 
+  // Test 11: Graph Agent Deduplication and Provider Status Propagation
+  const { orcaGraph } = await import('./OrcaGraph');
+  const testState: any = await orcaGraph.invoke({
+    query: "Analyze marine safety for Chennai",
+    contextData: { location: { lat: 13.0827, lon: 80.2707, name: 'Chennai' } }
+  });
+
+  const executedSteps = testState.executedSteps || [];
+  
+  // Count occurrences
+  const stepCounts: Record<string, number> = {};
+  for (const step of executedSteps) {
+    stepCounts[step] = (stepCounts[step] || 0) + 1;
+  }
+
+  const hasDuplicates = Object.values(stepCounts).some(count => count > 1);
+  
+  assert(
+    !hasDuplicates && executedSteps.includes('alertAgent') && executedSteps.includes('weatherAgent'),
+    'Graph executes required agents exactly once',
+    `Executed steps: ${executedSteps.join(', ')}`
+  );
+
+  const alertStatus = testState.contextData.alertStatus;
+  assert(
+    alertStatus === 'REAL_DATA_SUCCESS' || alertStatus === 'REAL_DATA_EMPTY' || alertStatus === 'PROVIDER_UNAVAILABLE' || alertStatus === 'MOCK_DATA',
+    'Alert provider status propagated correctly',
+    `Status: ${alertStatus}`
+  );
+
+  // Test 12: Real Satellite Provider Bounding Box
+  const { RealSatelliteProvider } = await import('../services/satellite/RealSatelliteProvider');
+  const provider = new RealSatelliteProvider();
+  
+  const satResult = await provider.getSnapshot({ lat: 13.0827, lon: 80.2707 });
+  
+  const isOk = 
+    satResult.status === 'REAL_DATA_SUCCESS' || 
+    satResult.status === 'PROVIDER_UNAVAILABLE' ||
+    satResult.status === 'REAL_DATA_EMPTY';
+
+  assert(
+    isOk,
+    'Satellite Provider handles request or reports outage/empty status correctly',
+    `Status: ${satResult.status}, SST: ${satResult.data?.sst} °C, Chla: ${satResult.data?.chlorophyll} mg/m³`
+  );
+
   console.log('\n-----------------------------------------------------------------')
   console.log(`TEST SUMMARY: ${passed} / ${total} tests passed (${Math.round((passed / total) * 100)}%)`)
   console.log('-----------------------------------------------------------------\n')

@@ -18,6 +18,7 @@ export interface ChatMessage {
   timestamp: Date
   agentTrace?: AgentTraceStep[]
   recommendation?: OrcaRecommendation
+  routePlan?: any
   isMockData?: boolean
 }
 
@@ -83,12 +84,29 @@ export interface WeatherSnapshot {
   isMockData: boolean
   location: string
   timestamp: Date
+  pressure?: number
+  windGusts?: number
+  cloudCover?: number
+  sunrise?: string
+  sunset?: string
 }
 
 export interface WeatherForecast {
   hourly: HourlyWeather[]
   daily: DailyWeather[]
   isMockData: boolean
+  dataSource?: string
+  fetchedAt?: Date
+}
+
+export interface HistoricalDataPoint {
+  time: string
+  temperature: number | null
+  windSpeed: number | null
+  waveHeight: number | null
+  precipitation: number | null
+  sst: number | null
+  chlorophyll: number | null
 }
 
 export interface HourlyWeather {
