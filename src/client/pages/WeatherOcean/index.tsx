@@ -3,6 +3,8 @@ import { MapPin, Navigation, Clock, ShieldCheck, Thermometer, Wind, Waves, Cloud
 import { useAppStore } from '../../store'
 import { getWeatherForecast } from '../../services/api/weatherService'
 import type { WeatherForecast } from '../../types'
+import { formatTimeAgo } from '../../utils/timeUtils'
+import DataStatusBadge from '../../components/ui/DataStatusBadge'
 
 export default function WeatherOceanPage() {
   const { currentWeather, weatherLoading, weatherError, user, setShowLocationModal } = useAppStore()
@@ -78,12 +80,9 @@ export default function WeatherOceanPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 12, color: 'var(--text-muted)' }}>
           {currentWeather && (
             <>
+              <DataStatusBadge isCached={(currentWeather as any).isCached} fetchedAt={(currentWeather as any).fetchedAt} />
               <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <Clock size={12} />
-                <span>Updated {currentWeather.timestamp?.toLocaleTimeString()}</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <ShieldCheck size={12} color="var(--status-go)" />
+                <ShieldCheck size={12} color={(currentWeather as any).isCached ? "var(--status-caution)" : "var(--status-go)"} />
                 <span>Source: {forecast?.dataSource || 'Open-Meteo'}</span>
               </div>
             </>
@@ -94,7 +93,9 @@ export default function WeatherOceanPage() {
       {weatherLoading && !currentWeather ? (
         <div className="glass-card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Loading real-time weather and ocean conditions...</div>
       ) : weatherError && !currentWeather ? (
-        <div className="glass-card" style={{ padding: 24, background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.2)', color: 'var(--status-nogo)' }}>Weather provider failed: {weatherError}</div>
+        <div className="glass-card" style={{ padding: 24, background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.2)', color: 'var(--status-nogo)' }}>
+          {weatherError.includes('Offline') ? 'No cached weather data available.' : `Weather provider failed: ${weatherError}`}
+        </div>
       ) : currentWeather ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           

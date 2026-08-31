@@ -1,21 +1,26 @@
 import { create } from 'zustand'
 import type { ChatMessage, UserProfile, WeatherSnapshot, Alert } from '../types'
-import { mockWeather, mockAlerts } from '../services/mockProviders/mockData'
 
 // Helper to retrieve initial location from localStorage
 const getInitialLocation = () => {
   const lat = localStorage.getItem('orca_lat')
   const lon = localStorage.getItem('orca_lon')
   const name = localStorage.getItem('orca_loc_name')
+  const district = localStorage.getItem('orca_loc_district') || ''
+  const state = localStorage.getItem('orca_loc_state') || ''
+  const country = localStorage.getItem('orca_loc_country') || ''
+  
   if (lat && lon && name) {
     return {
       location: { lat: parseFloat(lat), lon: parseFloat(lon) },
       locationName: name,
+      locationDetails: { district, state, country }
     }
   }
   return {
     location: undefined,
     locationName: '',
+    locationDetails: { district: '', state: '', country: '' }
   }
 }
 
@@ -33,14 +38,25 @@ interface AppStore {
 
   // Offline mode
   offlineMode: boolean
+  setOfflineMode: (offline: boolean) => void
   toggleOfflineMode: () => void
+  lastSyncTime: Date | null
+  setLastSyncTime: (time: Date) => void
+
+  // PWA Install Prompt
+  deferredPrompt: any | null
+  setDeferredPrompt: (prompt: any) => void
+  isInstallable: boolean
+  setIsInstallable: (installable: boolean) => void
+  isAppInstalled: boolean
+  setIsAppInstalled: (installed: boolean) => void
 
   // Location Selector
   showLocationModal: boolean
   setShowLocationModal: (show: boolean) => void
   locationLoading: boolean
   locationError: string | null
-  setLocation: (lat: number, lon: number, name: string) => void
+  setLocation: (lat: number, lon: number, name: string, district?: string, state?: string, country?: string) => void
 
   // Weather (sidebar widget)
   currentWeather: WeatherSnapshot | null
@@ -68,33 +84,53 @@ export const useAppStore = create<AppStore>((set, get) => ({
     role: 'FISHERMAN',
     locationName: initialLoc.locationName,
     location: initialLoc.location,
+    locationDetails: initialLoc.locationDetails,
     language: 'en',
     offlineMode: false,
-  },
+  } as any,
   setUser: (partial) =>
     set((s) => ({ user: { ...s.user, ...partial } })),
 
-  offlineMode: false,
+  offlineMode: !navigator.onLine,
+  setOfflineMode: (offline) => 
+    set((s) => ({
+      offlineMode: offline,
+      user: { ...s.user, offlineMode: offline },
+    })),
   toggleOfflineMode: () =>
     set((s) => ({
       offlineMode: !s.offlineMode,
       user: { ...s.user, offlineMode: !s.offlineMode },
     })),
+  lastSyncTime: new Date(),
+  setLastSyncTime: (time) => set({ lastSyncTime: time }),
+
+  deferredPrompt: null,
+  setDeferredPrompt: (prompt) => set({ deferredPrompt: prompt }),
+  isInstallable: false,
+  setIsInstallable: (installable) => set({ isInstallable: installable }),
+  isAppInstalled: false,
+  setIsAppInstalled: (installed) => set({ isAppInstalled: installed }),
 
   showLocationModal: !initialLoc.location,
   setShowLocationModal: (show) => set({ showLocationModal: show }),
   locationLoading: false,
   locationError: null,
-  setLocation: (lat, lon, name) => {
+  setLocation: (lat, lon, name, district = '', state = '', country = '') => {
     localStorage.setItem('orca_lat', lat.toString())
     localStorage.setItem('orca_lon', lon.toString())
     localStorage.setItem('orca_loc_name', name)
+    if (district) localStorage.setItem('orca_loc_district', district)
+    if (state) localStorage.setItem('orca_loc_state', state)
+    if (country) localStorage.setItem('orca_loc_country', country)
+    
     set((s) => ({
       user: {
         ...s.user,
         location: { lat, lon },
         locationName: name,
-      },
+        locationDetails: { district, state, country }
+      } as any,
       showLocationModal: false,
       locationError: null,
     }))
@@ -116,9 +152,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
     }
   },
 
-  alerts: mockAlerts,
+  alerts: [],
   setAlerts: (a) => set({ alerts: a, unreadAlertCount: a.length }),
-  unreadAlertCount: mockAlerts.length,
+  unreadAlertCount: 0,
   clearAlertBadge: () => set({ unreadAlertCount: 0 }),
 }))
 

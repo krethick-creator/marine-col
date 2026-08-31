@@ -3,9 +3,10 @@ import * as maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useAppStore } from '../../store'
 import { MapPin, Navigation, Shield, AlertTriangle } from 'lucide-react'
+import DataStatusBadge from '../../components/ui/DataStatusBadge';
 
 export default function BoundariesPage() {
-  const { user } = useAppStore()
+  const { user, offlineMode } = useAppStore()
   const mapContainer = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   
@@ -15,12 +16,12 @@ export default function BoundariesPage() {
   
   const markerRef = useRef<maplibregl.Marker | null>(null)
 
-  const fetchBoundaries = async (lat: number, lon: number) => {
+  const loadBoundaries = async (lat: number, lon: number) => {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/geospatial/boundaries?lat=${lat}&lon=${lon}`)
-      const json = await res.json()
+      const { fetchBoundaries } = await import('../../services/api/boundaryService')
+      const json = await fetchBoundaries(lat, lon)
       if (json.ok) {
         setBoundaries(json.data.boundaries)
         updateMap(lat, lon, json.data.boundaries)
@@ -46,12 +47,12 @@ export default function BoundariesPage() {
       
       map.on('load', () => {
         if (user.location) {
-          fetchBoundaries(user.location.lat, user.location.lon)
+          loadBoundaries(user.location.lat, user.location.lon)
         }
       })
     } else {
       if (user.location) {
-        fetchBoundaries(user.location.lat, user.location.lon)
+        loadBoundaries(user.location.lat, user.location.lon)
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -168,13 +169,17 @@ export default function BoundariesPage() {
       }}>
         <div style={{ padding: '24px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
           <h1 className="page-title" style={{ fontSize: 24, marginBottom: 4 }}>Boundaries</h1>
-          <p className="page-subtitle" style={{ margin: 0, fontSize: 13 }}>Real-time geospatial marine zones</p>
+          <p className="page-subtitle" style={{ margin: 0, fontSize: 13 }}>
+            {(!navigator.onLine || offlineMode) 
+              ? 'Offline — Cached Geospatial Data' 
+              : 'Real-time geospatial marine zones'}
+          </p>
         </div>
 
         <div style={{ padding: 20, flex: 1, overflowY: 'auto' }}>
           <div className="glass-card" style={{ padding: 16, marginBottom: 20, background: 'rgba(255,255,255,0.03)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, color: 'var(--text-light)', fontSize: 12, fontWeight: 600, textTransform: 'uppercase' }}>
-              <MapPin size={14} /> Current Location
+              <MapPin size={14} /> {(!navigator.onLine || offlineMode) ? 'Last Known Location' : 'Current Location'}
             </div>
             {user.location ? (
               <>
@@ -184,7 +189,7 @@ export default function BoundariesPage() {
                 <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
                   {user.location.lat.toFixed(4)}° N, {user.location.lon.toFixed(4)}° E
                 </div>
-                <button className="orca-btn" style={{ marginTop: 12, width: '100%', padding: '6px 12px', fontSize: 12 }} onClick={() => fetchBoundaries(user.location!.lat, user.location!.lon)}>
+                <button className="orca-btn" style={{ marginTop: 12, width: '100%', padding: '6px 12px', fontSize: 12 }} onClick={() => loadBoundaries(user.location!.lat, user.location!.lon)}>
                   Refresh Location
                 </button>
               </>
@@ -198,7 +203,17 @@ export default function BoundariesPage() {
           </div>
 
           {loading && <div style={{ color: 'var(--text-muted)', fontSize: 14 }}>Scanning boundaries...</div>}
-          {error && <div style={{ color: 'var(--status-nogo)', fontSize: 14 }}>{error}</div>}
+          
+          {error && (!navigator.onLine || offlineMode) && error.includes('Offline') ? (
+            <div style={{ fontSize: 14, color: 'var(--status-nogo)', padding: 16, background: 'rgba(239, 68, 68, 0.05)', borderRadius: 8, border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+              <div style={{ fontWeight: 600, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <AlertTriangle size={16} /> No cached boundary data available.
+              </div>
+              <div style={{ color: 'var(--text-muted)' }}>Connect to the internet to retrieve the latest marine boundary information.</div>
+            </div>
+          ) : error && (
+            <div style={{ color: 'var(--status-nogo)', fontSize: 14 }}>{error}</div>
+          )}
           
           {!loading && !error && boundaries.length === 0 && (
             <div style={{ fontSize: 14, color: 'var(--text-muted)', padding: 16, background: 'rgba(255,255,255,0.02)', borderRadius: 8 }}>
@@ -248,8 +263,17 @@ export default function BoundariesPage() {
             </div>
           ))}
         </div>
-        <div style={{ padding: 16, borderTop: '1px solid rgba(255,255,255,0.1)', fontSize: 11, color: 'var(--text-muted)', textAlign: 'center' }}>
-          Source: PostGIS (live) | Data status: REAL DATA
+        <div style={{ padding: 16, borderTop: '1px solid rgba(255,255,255,0.1)', fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', display: 'flex', justifyContent: 'center', gap: 8, alignItems: 'center' }}>
+          <span>Source: {
+            (!navigator.onLine || offlineMode)
+              ? (boundaries.length > 0 && (boundaries[0] as any).isCached ? 'Cached Data' : 'No Data Available')
+              : 'PostGIS'
+          }</span>
+          <span>|</span>
+          <DataStatusBadge 
+            isCached={boundaries.length > 0 && (boundaries[0] as any).isCached} 
+            fetchedAt={boundaries.length > 0 ? (boundaries[0] as any).fetchedAt : undefined} 
+          />
         </div>
       </div>
     </div>

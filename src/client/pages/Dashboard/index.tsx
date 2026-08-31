@@ -53,9 +53,23 @@ export default function DashboardPage() {
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--text-light)', fontSize: 14 }}>
-              <MapPin size={18} color="var(--accent-blue)" />
-              {appUser?.locationName || 'Select Location'}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, color: 'var(--text-light)', fontSize: 13, background: 'rgba(255,255,255,0.03)', padding: 12, borderRadius: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600, color: 'var(--text-main)', fontSize: 14, marginBottom: 4 }}>
+                <MapPin size={16} color="var(--accent-blue)" />
+                {appUser?.locationName || 'Select Location'}
+              </div>
+              {(appUser as any)?.locationDetails?.district && (
+                <div><span style={{ color: 'var(--text-muted)' }}>District:</span> {(appUser as any).locationDetails.district}</div>
+              )}
+              {(appUser as any)?.locationDetails?.state && (
+                <div><span style={{ color: 'var(--text-muted)' }}>State:</span> {(appUser as any).locationDetails.state}</div>
+              )}
+              {(appUser as any)?.locationDetails?.country && (
+                <div><span style={{ color: 'var(--text-muted)' }}>Country:</span> {(appUser as any).locationDetails.country}</div>
+              )}
+              {appUser?.location && (
+                <div><span style={{ color: 'var(--text-muted)' }}>Coordinates:</span> {appUser.location.lat.toFixed(4)}° N, {appUser.location.lon.toFixed(4)}° E</div>
+              )}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--text-light)', fontSize: 14 }}>
               <ShieldAlert size={18} color="var(--status-go)" />

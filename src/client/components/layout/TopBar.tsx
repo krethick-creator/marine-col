@@ -5,10 +5,21 @@ import { useAppStore } from '../../store'
 import { useAuthStore } from '../../store/authStore'
 
 export default function TopBar() {
-  const { unreadAlertCount, clearAlertBadge, offlineMode } = useAppStore()
+  const { unreadAlertCount, clearAlertBadge, offlineMode, lastSyncTime, deferredPrompt, setDeferredPrompt, isInstallable, setIsInstallable, isAppInstalled } = useAppStore()
   const { user, logout } = useAuthStore()
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+
+  const handleInstallClick = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt()
+      const { outcome } = await deferredPrompt.userChoice
+      if (outcome === 'accepted') {
+        setIsInstallable(false)
+      }
+      setDeferredPrompt(null)
+    }
+  }
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -28,12 +39,32 @@ export default function TopBar() {
         <span>DEMO MODE</span>
       </div>
 
+      {isInstallable && !isAppInstalled && (
+        <button
+          className="top-bar-pill"
+          onClick={handleInstallClick}
+          style={{ background: 'var(--accent-blue)', color: 'white', border: 'none', cursor: 'pointer' }}
+        >
+          Install App
+        </button>
+      )}
+
       {/* Live indicator */}
-      <div className="top-bar-pill">
-        <div className={`live-dot ${offlineMode ? '' : ''}`}
-          style={{ background: offlineMode ? 'var(--status-caution)' : 'var(--status-go)' }}
-        />
-        {offlineMode ? 'Offline' : 'Live Data'}
+      <div className="top-bar-pill" style={{ flexDirection: 'column', alignItems: 'flex-start', padding: '4px 10px', gap: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div className={`live-dot ${offlineMode ? '' : ''}`}
+            style={{ background: offlineMode ? 'var(--status-caution)' : 'var(--status-go)' }}
+          />
+          {offlineMode ? 'OFFLINE' : 'ONLINE'}
+        </div>
+        {offlineMode && (
+          <div style={{ fontSize: '9px', color: 'var(--status-caution)', marginTop: '2px', marginLeft: '12px' }}>
+            Using cached data
+          </div>
+        )}
+        <div style={{ fontSize: '9px', color: 'var(--text-muted)', marginTop: '2px', marginLeft: '12px' }}>
+          Last sync: {lastSyncTime ? lastSyncTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'N/A'}
+        </div>
       </div>
 
       {/* Alerts bell */}

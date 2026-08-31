@@ -2,6 +2,8 @@
  * Safe Route Result - data structure returned from the Route Agent API
  * Represents a calculated weather-aware maritime route from origin to destination
  */
+import { useAppStore } from '../../store';
+
 export interface SafeRouteResult {
     success: boolean
     status: 'GO' | 'CAUTION' | 'NO-GO'
@@ -54,6 +56,12 @@ export interface SafeRouteRequest {
 export async function fetchSafeRoute(
     params: SafeRouteRequest
 ): Promise<SafeRouteResult | null> {
+    const offlineMode = useAppStore.getState().offlineMode;
+    if (offlineMode || !navigator.onLine) {
+        console.warn('Cannot fetch safe route while offline');
+        return null;
+    }
+
     try {
         const queryParams = new URLSearchParams({
             originLat: params.originLat.toString(),

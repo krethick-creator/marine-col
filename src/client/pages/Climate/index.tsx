@@ -15,6 +15,7 @@ import {
   Legend
 } from 'recharts'
 import { useAppStore } from '../../store'
+import DataStatusBadge from '../../components/ui/DataStatusBadge'
 
 interface MonthlyClimatology {
   monthName: string
@@ -49,17 +50,21 @@ export default function ClimatePage() {
     setLoading(true)
     setError(null)
 
-    // Query 2025 Archive data for exact coordinates
     const lat = user.location.lat
     const lon = user.location.lon
-    const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=2025-01-01&end_date=2025-12-31&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max&timezone=auto`
 
-    fetch(url)
-      .then(res => {
-        if (!res.ok) throw new Error('Historical archive failed')
-        return res.json()
-      })
-      .then(json => {
+    const loadData = async () => {
+      try {
+        const { fetchClimateArchive } = await import('../../services/api/climateService')
+        const json = await fetchClimateArchive(lat, lon)
+
+        // Store cache status safely
+        setStats(prev => ({
+          ...(prev || { hottestMonth: '', wettestMonth: '', windiestMonth: '', annualRainfall: 0 }),
+          isCached: json.isCached,
+          fetchedAt: json.fetchedAt
+        }) as any)
+
         const daily = json.daily || {}
         const times: string[] = daily.time || []
         const maxTemps: number[] = daily.temperature_2m_max || []
@@ -114,30 +119,39 @@ export default function ClimatePage() {
           if (m.avgWindSpeed > maxW) { maxW = m.avgWindSpeed; windiestIdx = idx }
         })
 
-        setStats({
+        setStats(prev => ({
+          ...prev,
           hottestMonth: MONTH_NAMES[hottestIdx],
           wettestMonth: MONTH_NAMES[wettestIdx],
           windiestMonth: MONTH_NAMES[windiestIdx],
-          annualRainfall: parseFloat(totalRain.toFixed(1))
-        })
-        setLoading(false)
-      })
-      .catch(err => {
+          annualRainfall: parseFloat(totalRain.toFixed(1)),
+          isCached: json.isCached,
+          fetchedAt: json.fetchedAt
+        }) as any)
+
+      } catch (err: any) {
         console.error(err)
-        setError('Failed to fetch historical archive data for this location. Reconnect online or select another location.')
+        setError(err.message || 'Failed to fetch historical archive data.')
+      } finally {
         setLoading(false)
-      })
+      }
+    }
+    
+    loadData()
   }, [user?.location?.lat, user?.location?.lon])
 
   return (
     <div className="page-shell">
-      <div className="page-header">
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Compass size={24} color="var(--accent-blue)" /> Climate Patterns
           </h1>
           <p className="page-subtitle">Long-term seasonal climatology and historical cycles for {user?.locationName || 'your region'}</p>
         </div>
+        {stats && (
+          <DataStatusBadge isCached={(stats as any).isCached} fetchedAt={(stats as any).fetchedAt} />
+        )}
       </div>
 
       {/* Weather vs Climate explanatory Banner */}

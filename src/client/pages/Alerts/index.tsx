@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { fetchActiveAlerts } from '../../services/api/alertService'
 import { useAppStore } from '../../store'
 import type { Alert } from '../../types'
+import DataStatusBadge from '../../components/ui/DataStatusBadge'
 
 const severityConfig: Record<Alert['severity'], { color: string; bg: string; border: string; icon: string }> = {
   CRITICAL: { color: '#f87171', bg: 'rgba(239,68,68,0.10)', border: 'rgba(239,68,68,0.3)', icon: '🚨' },
@@ -29,11 +30,14 @@ export default function AlertsPage() {
 
   return (
     <div className="page-shell">
-      <div className="page-header">
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 className="page-title">Alerts & Warnings</h1>
           <p className="page-subtitle">Active marine advisories and safety alerts for your region</p>
         </div>
+        {alerts.length > 0 && (alerts[0] as any).isCached && (
+          <DataStatusBadge isCached={true} fetchedAt={(alerts[0] as any).fetchedAt} />
+        )}
       </div>
 
       {loading ? (
@@ -42,9 +46,19 @@ export default function AlertsPage() {
         </div>
       ) : alerts.length === 0 ? (
         <div className="glass-card" style={{ padding: 40, textAlign: 'center' }}>
-          <div style={{ fontSize: 36, marginBottom: 12 }}>✅</div>
-          <div style={{ color: '#4ade80', fontWeight: 600 }}>No active alerts</div>
-          <div style={{ fontSize: 13, color: 'rgba(184,223,240,0.4)', marginTop: 4 }}>All clear in your region</div>
+          {useAppStore.getState().offlineMode ? (
+            <>
+              <div style={{ fontSize: 36, marginBottom: 12 }}>📶</div>
+              <div style={{ color: 'var(--status-caution)', fontWeight: 600 }}>No cached alert data available.</div>
+              <div style={{ fontSize: 13, color: 'rgba(184,223,240,0.4)', marginTop: 4 }}>Connect to the internet to fetch alerts.</div>
+            </>
+          ) : (
+            <>
+              <div style={{ fontSize: 36, marginBottom: 12 }}>✅</div>
+              <div style={{ color: '#4ade80', fontWeight: 600 }}>No active alerts</div>
+              <div style={{ fontSize: 13, color: 'rgba(184,223,240,0.4)', marginTop: 4 }}>All clear in your region</div>
+            </>
+          )}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

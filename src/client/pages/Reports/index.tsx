@@ -17,9 +17,10 @@ import {
 import { useAppStore } from '../../store'
 import { getWeatherHistory } from '../../services/api/weatherService'
 import type { HistoricalDataPoint } from '../../types'
+import DataStatusBadge from '../../components/ui/DataStatusBadge'
 
 export default function ReportsPage() {
-  const { user } = useAppStore()
+  const { user, offlineMode } = useAppStore()
   const [period, setPeriod] = useState<'today' | '7days' | '30days' | 'custom'>('7days')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
@@ -99,6 +100,11 @@ export default function ReportsPage() {
         <div>
           <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <BarChart2 size={24} color="var(--accent-blue)" /> Reports & Analytics
+            {offlineMode && (
+              <div style={{ marginLeft: 8 }}>
+                <DataStatusBadge isCached={true} fetchedAt={historyData.length > 0 ? (historyData[0] as any).fetchedAt : undefined} />
+              </div>
+            )}
           </h1>
           <p className="page-subtitle">Historical trends, parameter analysis, and weather charts for {user?.locationName || 'your region'}</p>
         </div>
@@ -154,7 +160,9 @@ export default function ReportsPage() {
       {loading ? (
         <div className="glass-card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Loading analytics data...</div>
       ) : error ? (
-        <div className="glass-card" style={{ padding: 24, background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.2)', color: 'var(--status-nogo)' }}>{error}</div>
+        <div className="glass-card" style={{ padding: 24, background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.2)', color: 'var(--status-nogo)' }}>
+          {error.includes('Offline') ? 'No cached data available for this period.' : error}
+        </div>
       ) : chartData.length === 0 ? (
         <div className="glass-card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Select dates or refresh coordinates to view historical reports.</div>
       ) : (

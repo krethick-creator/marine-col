@@ -55,13 +55,37 @@ import { useAppStore } from './store'
 import LocationPromptModal from './components/ui/LocationPromptModal'
 
 export default function App() {
-  const checkAuth = useAuthStore(state => state.clearError); // Fix infinite loop
+  const checkAuth = useAuthStore(state => state.clearError);
   const user = useAppStore(state => state.user);
   const fetchWeather = useAppStore(state => state.fetchWeather);
+  const setOfflineMode = useAppStore(state => state.setOfflineMode);
+  const setLastSyncTime = useAppStore(state => state.setLastSyncTime);
 
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setOfflineMode(false);
+      setLastSyncTime(new Date());
+      if (user?.location?.lat && user?.location?.lon) {
+        fetchWeather(user.location.lat, user.location.lon);
+      }
+    };
+    
+    const handleOffline = () => {
+      setOfflineMode(true);
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [setOfflineMode, setLastSyncTime, user?.location?.lat, user?.location?.lon, fetchWeather]);
 
   // Fetch weather on mount and every 15 minutes
   useEffect(() => {
@@ -70,11 +94,14 @@ export default function App() {
       const lon = user.location.lon;
       fetchWeather(lat, lon);
       const interval = setInterval(() => {
-        fetchWeather(lat, lon);
+        if (navigator.onLine) {
+          fetchWeather(lat, lon);
+          setLastSyncTime(new Date());
+        }
       }, 15 * 60 * 1000);
       return () => clearInterval(interval);
     }
-  }, [user?.location?.lat, user?.location?.lon, fetchWeather]);
+  }, [user?.location?.lat, user?.location?.lon, fetchWeather, setLastSyncTime]);
 
   return (
     <>

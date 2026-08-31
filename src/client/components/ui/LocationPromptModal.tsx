@@ -64,7 +64,7 @@ export default function LocationPromptModal() {
           const parts = [city, district, state, country].filter(Boolean)
           const locationName = parts.length > 0 ? parts.join(', ') : data.display_name || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`
 
-          setLocation(latitude, longitude, locationName)
+          setLocation(latitude, longitude, locationName, district, state, country)
           setLoading(false)
         } catch (err) {
           console.error(err)
