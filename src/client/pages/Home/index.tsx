@@ -98,6 +98,7 @@ export default function HomePage() {
     streamChat(
       query,
       user?.location ? { ...user.location, locationName: user.locationName } : undefined,
+      user?.language || 'en',
       (nodeName, executedSteps) => {
         // Find which step this corresponds to
         let targetIndex = nodeMap[nodeName];

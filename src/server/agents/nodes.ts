@@ -1,4 +1,4 @@
-﻿import { OrcaState } from './OrcaState';
+import { OrcaState } from './OrcaState';
 import { SystemMessage } from '@langchain/core/messages';
 import { groqModelRouter } from '../llm/GroqModelRouter';
 import { getSatelliteProvider } from '../services/satellite';
@@ -7,6 +7,7 @@ import { getOceanProvider } from '../services/ocean';
 import { getAdvisoryProvider } from '../services/advisories';
 import { getGeospatialProvider } from '../services/geospatial';
 import { getSafeRoute } from './routeAgent';
+import { getTranslationProvider } from '../services/translation';
 
 function parseLocationsFromQuery(query: string) {
   const q = query.toLowerCase();
@@ -696,9 +697,42 @@ User Query: "${state.query}"
 Provide a professional markdown response covering the relevant data and the risk recommendation.`;
 
   const response = await groqModelRouter.invoke([new SystemMessage(prompt)], 'synthesis');
+  const finalEnglishResponse = response.response;
+  const targetLanguage = state.contextData.language || 'en';
+
+  let finalResponse = finalEnglishResponse;
+  let responseLanguage = 'en';
+  let translationFailed = false;
+
+  if (targetLanguage !== 'en') {
+    const translator = getTranslationProvider();
+    const result = await translator.translateText(finalEnglishResponse, targetLanguage);
+
+    if (result.status === 'PROVIDER_UNAVAILABLE' || result.status === 'NOT_CONFIGURED') {
+      // Fallback to Groq native generation
+      console.log(`[Synthesis Agent] Translation provider unavailable. Falling back to Groq native for language ${targetLanguage}`);
+      const fallbackPrompt = `Translate the following markdown response into the language with code '${targetLanguage}'. Preserve all markdown formatting, numbers, and technical terms where appropriate. Do NOT add any conversational filler, just translate the text.
+
+Original text:
+${finalEnglishResponse}`;
+      try {
+        const fallbackResponse = await groqModelRouter.invoke([new SystemMessage(fallbackPrompt)], 'synthesis');
+        finalResponse = fallbackResponse.response;
+        responseLanguage = targetLanguage;
+      } catch (err) {
+        console.error('[Synthesis Agent] Groq fallback translation failed:', err);
+        translationFailed = true;
+      }
+    } else {
+      finalResponse = result.translatedText;
+      responseLanguage = targetLanguage;
+    }
+  }
 
   return {
-    finalResponse: response.response,
+    finalResponse: finalResponse,
+    responseLanguage: responseLanguage,
+    translationFailed: translationFailed,
     executedSteps: ['synthesisAgent']
   };
 };

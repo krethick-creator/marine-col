@@ -240,7 +240,7 @@ async function runTests() {
   });
 
   const executedSteps = testState.executedSteps || [];
-  
+
   // Count occurrences
   const stepCounts: Record<string, number> = {};
   for (const step of executedSteps) {
@@ -248,7 +248,7 @@ async function runTests() {
   }
 
   const hasDuplicates = Object.values(stepCounts).some(count => count > 1);
-  
+
   assert(
     !hasDuplicates && executedSteps.includes('alertAgent') && executedSteps.includes('weatherAgent'),
     'Graph executes required agents exactly once',
@@ -265,11 +265,11 @@ async function runTests() {
   // Test 12: Real Satellite Provider Bounding Box
   const { RealSatelliteProvider } = await import('../services/satellite/RealSatelliteProvider');
   const provider = new RealSatelliteProvider();
-  
+
   const satResult = await provider.getSnapshot({ lat: 13.0827, lon: 80.2707 });
-  
-  const isOk = 
-    satResult.status === 'REAL_DATA_SUCCESS' || 
+
+  const isOk =
+    satResult.status === 'REAL_DATA_SUCCESS' ||
     satResult.status === 'PROVIDER_UNAVAILABLE' ||
     satResult.status === 'REAL_DATA_EMPTY';
 
@@ -278,6 +278,80 @@ async function runTests() {
     'Satellite Provider handles request or reports outage/empty status correctly',
     `Status: ${satResult.status}, SST: ${satResult.data?.sst} °C, Chla: ${satResult.data?.chlorophyll} mg/m³`
   );
+
+  // Translation tests
+  console.log('\n--- TRANSLATION TESTS ---');
+  const { resolveLanguage } = await import('../utils/language');
+
+  // Test 13: Explicit language code
+  const hiState = await orcaGraph.invoke({
+    query: "Analyze marine safety for Chennai",
+    contextData: { location: { lat: 13.0827, lon: 80.2707, name: 'Chennai' }, language: 'hi' }
+  });
+  assert(
+    hiState.responseLanguage === 'hi' && (hiState.finalResponse as string).length > 0,
+    'Chat request with explicit language returns correct responseLanguage and non-empty response',
+    `responseLanguage: ${hiState.responseLanguage}, length: ${(hiState.finalResponse as string).length}`
+  );
+
+  // Test 14: English ignores translation
+  const { getTranslationProvider, setTranslationProvider } = await import('../services/translation');
+  const translator = getTranslationProvider() as any;
+  const initialCount = translator.callCount || 0;
+
+  const enState = await orcaGraph.invoke({
+    query: "Analyze marine safety for Chennai",
+    contextData: { location: { lat: 13.0827, lon: 80.2707, name: 'Chennai' }, language: 'en' }
+  });
+  assert(
+    enState.responseLanguage === 'en' && !enState.translationFailed && translator.callCount === initialCount,
+    'English request skips translation API',
+    `responseLanguage: ${enState.responseLanguage}, translation calls: ${translator.callCount - initialCount}`
+  );
+
+  // Test 15: Invalid language code handled via resolveLanguage
+  const resolvedUnknownLang = await resolveLanguage("Analyze marine safety for Chennai", 'xyz');
+  const unknownState = await orcaGraph.invoke({
+    query: "Analyze marine safety for Chennai",
+    contextData: { location: { lat: 13.0827, lon: 80.2707, name: 'Chennai' }, language: resolvedUnknownLang }
+  });
+  assert(
+    unknownState.responseLanguage === 'en' && resolvedUnknownLang === 'en',
+    'Unsupported language falls back to auto-detection/English',
+    `resolvedLanguage: ${resolvedUnknownLang}`
+  );
+
+  // Test 16: Auto-detect non-English language
+  const hindiQuery = "क्या कल मछली पकड़ने जाना सुरक्षित है?";
+  const autoLang = await resolveLanguage(hindiQuery, undefined);
+  const autoState = await orcaGraph.invoke({
+    query: hindiQuery,
+    contextData: { location: { lat: 13.0827, lon: 80.2707, name: 'Chennai' }, language: autoLang }
+  });
+  assert(
+    autoLang === 'hi' && autoState.responseLanguage === 'hi' && (autoState.finalResponse as string).length > 0,
+    'Auto-detects Hindi and responds in Hindi with non-empty text',
+    `detected: ${autoLang}, responseLanguage: ${autoState.responseLanguage}`
+  );
+
+  // Test 17: Bhashini NOT_CONFIGURED fallback
+  const { BhashiniTranslationProvider } = await import('../services/translation/BhashiniTranslationProvider');
+  const oldProvider = getTranslationProvider();
+
+  // We instantiate Bhashini natively which lacks credentials in this test env
+  setTranslationProvider(new BhashiniTranslationProvider());
+  const fallbackState = await orcaGraph.invoke({
+    query: "Analyze marine safety for Chennai",
+    contextData: { location: { lat: 13.0827, lon: 80.2707, name: 'Chennai' }, language: 'ta' }
+  });
+  assert(
+    fallbackState.responseLanguage === 'ta' && fallbackState.translationFailed === false,
+    'Bhashini NOT_CONFIGURED falls back to Groq native generation',
+    `responseLanguage: ${fallbackState.responseLanguage}`
+  );
+
+  // Restore mock provider
+  setTranslationProvider(oldProvider);
 
   console.log('\n-----------------------------------------------------------------')
   console.log(`TEST SUMMARY: ${passed} / ${total} tests passed (${Math.round((passed / total) * 100)}%)`)

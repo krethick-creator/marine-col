@@ -1,6 +1,7 @@
 export async function streamChat(
   query: string,
   location: { lat: number, lon: number; locationName?: string } | undefined,
+  language: string,
   onStep: (stepName: string, executedSteps: string[]) => void,
   onEnd: (finalResponse: string, riskAssessment: any, routePlan: any, providerStatuses: Record<string, { status: string; error?: string }>) => void,
   onError: (error: string) => void
@@ -9,7 +10,7 @@ export async function streamChat(
     const res = await fetch('/api/chat/stream', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query, location })
+      body: JSON.stringify({ query, location, language })
     });
 
     if (!res.ok || !res.body) {

@@ -40,6 +40,7 @@ export const env = {
   geminiApiKey:   optional('GOOGLE_GENERATIVE_AI_API_KEY', ''),
   anthropicApiKey:optional('ANTHROPIC_API_KEY', ''),
   maptilerApiKey: optional('MAPTILER_API_KEY', ''),
+  bhashiniApiKey: optional('BHASHINI_API_KEY', ''),
 
   // CORS
   frontendUrl:    optional('FRONTEND_URL', 'http://localhost:5173'),

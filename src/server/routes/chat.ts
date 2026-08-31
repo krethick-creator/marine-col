@@ -1,10 +1,12 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { orcaGraph } from '../agents/OrcaGraph';
+import { SystemMessage } from '@langchain/core/messages';
+import { resolveLanguage } from '../utils/language';
 
 const router = Router();
 
-router.post('/stream', async (req, res) => {
-  const { query, location } = req.body;
+router.post('/stream', async (req: Request, res: Response) => {
+  let { query, location, language } = req.body;
 
   if (!query) {
     return res.status(400).json({ error: 'Query is required' });
@@ -18,9 +20,13 @@ router.post('/stream', async (req, res) => {
   });
 
   try {
+    // Validate language or auto-detect
+    const resolvedLanguage = await resolveLanguage(query, language);
+
     const initialState: any = { query };
+    initialState.contextData = { language: resolvedLanguage };
     if (location && typeof location.lat === 'number' && typeof location.lon === 'number') {
-      initialState.contextData = { location };
+      initialState.contextData.location = location;
     }
 
     const stream = await orcaGraph.stream(initialState);
@@ -75,6 +81,8 @@ router.post('/stream', async (req, res) => {
     res.write(`data: ${JSON.stringify({
       node: 'END',
       finalResponse: finalStateObj?.finalResponse,
+      responseLanguage: finalStateObj?.responseLanguage,
+      translationFailed: finalStateObj?.translationFailed,
       riskAssessment: finalStateObj?.riskAssessment,
       routePlan: finalStateObj?.routePlan,
       providerStatuses,
