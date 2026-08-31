@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { fetchActiveAlerts } from '../../services/api/alertService'
-import { fetchActiveAlerts } from '../../services/api/alertService'
 import { useAppStore } from '../../store'
 import type { Alert } from '../../types'
 import { useTranslation } from '../../locales'
@@ -12,7 +11,6 @@ const severityConfig: Record<Alert['severity'], { color: string; bg: string; bor
   LOW:      { color: '#7ec8e3', bg: 'rgba(126,200,227,0.06)', border: 'rgba(126,200,227,0.2)', icon: 'ℹ️' },
 }
 
-export default function AlertsPage() {
 export default function AlertsPage() {
   const user = useAppStore(state => state.user)
   const [alerts, setAlerts] = useState<Alert[]>([])

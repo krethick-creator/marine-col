@@ -156,8 +156,7 @@ export default function LocationPromptModal({ onSelectLocation, onClose, isDismi
             ))}
           </div>
         </div>
-
-      </div>
+      )}
     </div>
   )
 }
