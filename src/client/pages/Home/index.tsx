@@ -1,12 +1,15 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Plus, Mic, Brain, Send } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import AgentTrace from '../../components/chat/AgentTrace'
 import RecommendationCard from '../../components/chat/RecommendationCard'
+import ChatRouteMap from '../../components/chat/ChatRouteMap'
 import {
   mockAgentSteps,
   getMockResponseForQuery,
 } from '../../services/mockProviders/mockData'
-import { useChatStore } from '../../store'
+import { useChatStore, useAppStore } from '../../store'
 import type { ChatMessage, AgentTraceStep } from '../../types'
 
 // ─── Suggestion chips ─────────────────────────────────────────────────
@@ -23,7 +26,7 @@ const suggestions = [
 const AGENT_STEP_DELAY_MS = 600
 
 export default function HomePage() {
-  const { messages, addMessage, isLoading, setLoading, setAgentIndex } = useChatStore()
+  const { messages, addMessage, updateMessage, isLoading, setLoading, setAgentIndex } = useChatStore()
   const [input, setInput] = useState('')
   const [agentSteps, setAgentSteps] = useState<AgentTraceStep[]>([])
   const [localAgentIndex, setLocalAgentIndex] = useState(-1)
@@ -47,16 +50,24 @@ export default function HomePage() {
     }
   }
 
-  // ─── Simulate multi-agent processing ──────────────────────────────
+  const { user } = useAppStore() // Assuming this is where location is stored
+
+  // --- Real agent processing ---
   const simulateAgents = useCallback(async (query: string) => {
+    // 1. Initial UI setup (trace placeholder)
+    const traceId = `trace-${Date.now()}`
+    
+    // We start with our agent list from mockAgentSteps just to have labels,
+    // but we will mark them as pending/active as the stream goes.
     const steps: AgentTraceStep[] = mockAgentSteps.map((s) => ({
       ...s,
       status: 'pending' as const,
     }))
+    
     setAgentSteps(steps)
     setLocalAgentIndex(0)
+    setAgentIndex(0)
 
-    const traceId = `trace-${Date.now()}`
     addMessage({
       id: traceId,
       role: 'assistant',
@@ -65,31 +76,93 @@ export default function HomePage() {
       agentTrace: steps,
     })
 
-    for (let i = 0; i < steps.length; i++) {
-      setLocalAgentIndex(i)
-      setAgentIndex(i)
-      await new Promise((r) => setTimeout(r, AGENT_STEP_DELAY_MS))
-    }
+    // 2. Map backend nodes to UI agent indices
+    const nodeMap: Record<string, number> = {
+      'plannerAgent': 0,
+      'dataDiscoveryAgent': 1,
+      'agentRouterNode': 1,
+      'weatherAgent': 2,
+      'oceanAgent': 3,
+      'geospatialAgent': 3,
+      'alertAgent': 4,
+      'satelliteAgent': 4,
+      'riskAgent': 5,
+      'routeAgent': 6,
+      'synthesisAgent': 7,
+    };
 
-    setLocalAgentIndex(steps.length)
-    setAgentIndex(steps.length)
+    let latestIndex = 0;
 
-    const { recommendation, answer } = getMockResponseForQuery(query)
+    const { streamChat } = await import('../../services/api/chatService');
+    
+    streamChat(
+      query,
+      user?.location ? { ...user.location, locationName: user.locationName } : undefined,
+      (nodeName, executedSteps) => {
+        // Find which step this corresponds to
+        let targetIndex = nodeMap[nodeName];
+        if (targetIndex !== undefined) {
+          if (targetIndex < latestIndex) targetIndex = latestIndex;
+          latestIndex = targetIndex;
+          setLocalAgentIndex(targetIndex);
+          setAgentIndex(targetIndex);
+        }
+      },
+      (finalResponse, riskAssessment, routePlan, providerStatuses) => {
+        setLocalAgentIndex(steps.length);
+        setAgentIndex(steps.length);
+        
+        let formattedRecommendation = undefined;
+        
+        if (riskAssessment) {
+          // riskAgent now returns { level, reasoning, evidence }
+          const riskLevel = riskAssessment.level ?? riskAssessment.status ?? 'CAUTION';
+          formattedRecommendation = {
+            level: riskLevel, // GO, CAUTION, NO_GO
+            confidence: 'HIGH' as const,
+            summary: riskAssessment.summary || '',
+            reasoning: riskAssessment.reasoning || [],
+            evidence: [
+              { label: 'Wind Speed', value: riskAssessment.evidence?.windSpeed ? `${riskAssessment.evidence.windSpeed} km/h` : 'Unknown', icon: '💨' },
+              { label: 'Wave Height', value: riskAssessment.evidence?.waveHeight !== null && riskAssessment.evidence?.waveHeight !== undefined ? `${riskAssessment.evidence.waveHeight} m` : 'Unavailable', icon: '🌊' },
+              ...(riskAssessment.evidence?.seaState ? [{ label: 'Sea State', value: riskAssessment.evidence.seaState, icon: '⛵' }] : []),
+              ...(riskAssessment.evidence?.swellPeriod ? [{ label: 'Swell Period', value: `${riskAssessment.evidence.swellPeriod} s`, icon: '⏱️' }] : []),
+              ...(riskAssessment.evidence?.currentSpeed !== null && riskAssessment.evidence?.currentSpeed !== undefined ? [{ label: 'Current Speed', value: `${riskAssessment.evidence.currentSpeed} km/h`, icon: '🧭' }] : []),
+            ],
+            dataFreshness: {
+              weather: providerStatuses?.weather?.status === 'REAL_DATA_SUCCESS' ? 'Just now' : providerStatuses?.weather?.status ?? 'Unknown',
+              marine: providerStatuses?.ocean?.status === 'REAL_DATA_SUCCESS' ? 'Just now' : providerStatuses?.ocean?.status ?? 'Unknown',
+              satellite: providerStatuses?.satellite?.status === 'REAL_DATA_SUCCESS' ? 'Just now' : providerStatuses?.satellite?.status ?? 'Unknown',
+              updatedAt: new Date()
+            },
+            isMockData: Object.values(providerStatuses || {}).some((p) => p.status === 'MOCK_DATA')
+          }
+        }
 
-    addMessage({
-      id: `ans-${Date.now()}`,
-      role: 'assistant',
-      content: answer,
-      timestamp: new Date(),
-      recommendation,
-      isMockData: true,
-    })
+        updateMessage(traceId, {
+          content: finalResponse,
+          recommendation: formattedRecommendation,
+          routePlan: routePlan && routePlan.success && routePlan.waypoints?.length > 0 ? routePlan : undefined,
+          isMockData: false,
+        });
 
-    setLoading(false)
-    setLocalAgentIndex(-1)
-    setAgentIndex(-1)
-    setAgentSteps([])
-  }, [addMessage, setLoading, setAgentIndex])
+        setLoading(false);
+        setLocalAgentIndex(-1);
+        setAgentIndex(-1);
+        setAgentSteps([]);
+      },
+      (err) => {
+        updateMessage(traceId, {
+          content: `Sorry, I encountered an error: ${err}`,
+          isMockData: false,
+        });
+        setLoading(false);
+        setLocalAgentIndex(-1);
+        setAgentIndex(-1);
+        setAgentSteps([]);
+      }
+    )
+  }, [addMessage, updateMessage, setLoading, setAgentIndex, user?.location])
 
   // ─── Submit handler ────────────────────────────────────────────────
   const handleSubmit = useCallback(async () => {
@@ -205,13 +278,17 @@ function MessageGroup({
 
       <div className={`message-bubble ${msg.role}`}>
         <MessageContent content={msg.content} />
+        {msg.recommendation && (
+          <div style={{ marginTop: 16, borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 16, width: '100%', maxWidth: 560 }}>
+            <RecommendationCard rec={msg.recommendation} />
+          </div>
+        )}
+        {msg.routePlan && (
+          <div style={{ marginTop: 12, width: '100%', maxWidth: 560 }}>
+            <ChatRouteMap routePlan={msg.routePlan} />
+          </div>
+        )}
       </div>
-
-      {msg.recommendation && (
-        <div style={{ marginTop: 8, width: '100%', maxWidth: 560 }}>
-          <RecommendationCard rec={msg.recommendation} />
-        </div>
-      )}
 
       <div style={{ fontSize: 10.5, color: 'var(--text-light)', paddingLeft: 4, marginTop: 2 }}>
         {msg.timestamp.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
@@ -222,14 +299,13 @@ function MessageGroup({
 }
 
 function MessageContent({ content }: { content: string }) {
-  const parts = content.split(/\*\*(.*?)\*\*/g)
+  if (content === '__AGENT_TRACE__') return null
+  
   return (
-    <>
-      {parts.map((part, i) =>
-        i % 2 === 1
-          ? <strong key={i} style={{ color: 'inherit', fontWeight: 700 }}>{part}</strong>
-          : <span key={i}>{part}</span>
-      )}
-    </>
+    <div className="markdown-body">
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+        {content}
+      </ReactMarkdown>
+    </div>
   )
 }

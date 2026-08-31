@@ -1,7 +1,8 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import {
   Home, Map, Calendar, Cloud, Fish, AlertTriangle,
-  Flag, Users, LifeBuoy, MessageSquare, Wifi, WifiOff, Settings
+  Flag, Users, LifeBuoy, MessageSquare, Wifi, WifiOff, Settings,
+  Compass, BarChart2, MapPin
 } from 'lucide-react'
 import OrcaLogo from '../ui/OrcaLogo'
 import { useAppStore } from '../../store'
@@ -12,6 +13,8 @@ const navItems = [
   { to: '/map',       icon: Map,           label: 'Live Map' },
   { to: '/planner',   icon: Calendar,      label: 'Trip Planner' },
   { to: '/weather',   icon: Cloud,         label: 'Weather & Ocean' },
+  { to: '/climate',   icon: Compass,       label: 'Climate Patterns' },
+  { to: '/reports',   icon: BarChart2,     label: 'Reports & Analytics' },
   { to: '/fishing',   icon: Fish,          label: 'Fishing Zones' },
   { to: '/alerts',    icon: AlertTriangle, label: 'Alerts & Warnings', badge: true },
   { to: '/boundaries',icon: Flag,          label: 'Boundaries' },
@@ -21,7 +24,7 @@ const navItems = [
 ]
 
 export default function Sidebar() {
-  const { currentWeather, offlineMode, toggleOfflineMode, unreadAlertCount } = useAppStore()
+  const { currentWeather, weatherLoading, weatherError, offlineMode, toggleOfflineMode, unreadAlertCount, user: appUser } = useAppStore()
   const { user } = useAuthStore()
   const location = useLocation()
 
@@ -70,21 +73,54 @@ export default function Sidebar() {
       {/* Bottom section */}
       <div className="sidebar-bottom">
         {/* Weather mini card */}
-        <div className="weather-mini-card">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 24 }}>🌤️</span>
-            <div>
-              <div className="temp">
-                {currentWeather.temperature}°C
-              </div>
-              <div className="loc">
-                {currentWeather.condition}
-              </div>
+        <div className="weather-mini-card" style={{ minHeight: 64, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          {!appUser.location ? (
+            <div 
+              style={{ fontSize: 13, color: 'var(--accent-blue)', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}
+              onClick={() => useAppStore.getState().setShowLocationModal(true)}
+            >
+              <MapPin size={14} /> Set Location
             </div>
-          </div>
-          <div className="loc" style={{ marginTop: 6, fontWeight: 500 }}>
-            {currentWeather.location}
-          </div>
+          ) : weatherLoading && !currentWeather ? (
+            <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>Loading weather...</div>
+          ) : weatherError && !currentWeather ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div style={{ fontSize: 12, color: 'var(--status-nogo)' }}>Weather unavailable</div>
+              <span 
+                style={{ fontSize: 11, color: 'var(--accent-blue)', cursor: 'pointer', fontWeight: 500 }}
+                onClick={() => useAppStore.getState().setShowLocationModal(true)}
+              >
+                Change Location
+              </span>
+            </div>
+          ) : currentWeather ? (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 24 }}>🌤️</span>
+                <div>
+                  <div className="temp">
+                    {currentWeather.temperature}°C
+                  </div>
+                  <div className="loc">
+                    {currentWeather.condition}
+                  </div>
+                </div>
+              </div>
+              <div className="loc" style={{ marginTop: 6, fontWeight: 500, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: 120 }}>
+                  {appUser.locationName || currentWeather.location}
+                </span>
+                <span 
+                  style={{ fontSize: 10, color: 'var(--accent-blue)', cursor: 'pointer', fontWeight: 600 }}
+                  onClick={() => useAppStore.getState().setShowLocationModal(true)}
+                >
+                  Change
+                </span>
+              </div>
+            </>
+          ) : (
+            <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>No data</div>
+          )}
         </div>
 
         {/* Offline mode toggle */}

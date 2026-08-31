@@ -1,4 +1,4 @@
-import { Router } from 'express'
+﻿import { Router } from 'express'
 import { z } from 'zod'
 import { asyncHandler } from '../middleware/errorHandler'
 import { validate } from '../middleware/validate'
@@ -14,15 +14,15 @@ const LocationSchema = z.object({
   radiusKm: z.coerce.number().min(1).max(500).optional().default(100),
 })
 
-// GET /api/ocean/snapshot?lat=13.08&lon=80.27
+// GET /api/ocean/snapshot
 router.get('/snapshot', validate(LocationSchema, 'query'), asyncHandler(async (req, res) => {
   const { lat, lon } = req.query as unknown as z.infer<typeof LocationSchema>
-  const data = await getOceanProvider().getSnapshot({ lat, lon })
-  const body: ApiSuccess<typeof data> = { ok: true, data, isMockData: data.isMockData, timestamp: new Date().toISOString() }
+  const result = await getOceanProvider().getSnapshot({ lat, lon })
+  const body: ApiSuccess<typeof result.data> = { ok: true, data: result.data, isMockData: result.status === 'MOCK_DATA', timestamp: new Date().toISOString() }
   res.json(body)
 }))
 
-// GET /api/ocean/pfz?lat=13.08&lon=80.27&radiusKm=100
+// GET /api/ocean/pfz
 router.get('/pfz', validate(LocationSchema, 'query'), asyncHandler(async (req, res) => {
   const { lat, lon, radiusKm } = req.query as unknown as z.infer<typeof LocationSchema>
   const data = await getOceanProvider().getPFZZones({ lat, lon }, radiusKm)
@@ -31,11 +31,11 @@ router.get('/pfz', validate(LocationSchema, 'query'), asyncHandler(async (req, r
   res.json(body)
 }))
 
-// GET /api/ocean/satellite?lat=13.08&lon=80.27
+// GET /api/ocean/satellite
 router.get('/satellite', validate(LocationSchema, 'query'), asyncHandler(async (req, res) => {
   const { lat, lon } = req.query as unknown as z.infer<typeof LocationSchema>
-  const data = await getSatelliteProvider().getSnapshot({ lat, lon })
-  const body: ApiSuccess<typeof data> = { ok: true, data, isMockData: data.isMockData, timestamp: new Date().toISOString() }
+  const result = await getSatelliteProvider().getSnapshot({ lat, lon })
+  const body: ApiSuccess<typeof result.data> = { ok: true, data: result.data, isMockData: result.status === 'MOCK_DATA', timestamp: new Date().toISOString() }
   res.json(body)
 }))
 

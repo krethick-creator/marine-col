@@ -1,5 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
-import { useEffect } from 'react'
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom'
+import { useEffect, useRef } from 'react'
 import OceanBackground from './components/layout/OceanBackground'
 import Sidebar from './components/layout/Sidebar'
 import TopBar from './components/layout/TopBar'
@@ -15,6 +15,8 @@ import DashboardPage from './pages/Dashboard'
 import LiveMapPage from './pages/LiveMap'
 import TripPlannerPage from './pages/TripPlanner'
 import WeatherOceanPage from './pages/WeatherOcean'
+import ClimatePage from './pages/Climate'
+import ReportsPage from './pages/Reports'
 import FishingZonesPage from './pages/FishingZones'
 import AlertsPage from './pages/Alerts'
 import BoundariesPage from './pages/Boundaries'
@@ -24,7 +26,8 @@ import FeedbackPage from './pages/Feedback'
 
 // Protected Route Wrapper
 const ProtectedRoute = () => {
-  const { isAuthenticated } = useAuthStore();
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
+  
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   
   return (
@@ -40,7 +43,7 @@ const ProtectedRoute = () => {
 
 // Public Route Wrapper
 const PublicRoute = () => {
-  const { isAuthenticated } = useAuthStore();
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   if (isAuthenticated) return <Navigate to="/home" replace />;
   return (
     <div className="app-layout" style={{ justifyContent: 'center', alignItems: 'center' }}>
@@ -49,17 +52,38 @@ const PublicRoute = () => {
   );
 };
 
+import { useAppStore } from './store'
+import LocationPromptModal from './components/ui/LocationPromptModal'
+
 export default function App() {
   const checkAuth = useAuthStore(state => state.clearError); // Fix infinite loop
+  const user = useAppStore(state => state.user);
+  const fetchWeather = useAppStore(state => state.fetchWeather);
 
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
 
+  // Fetch weather on mount and every 15 minutes
+  useEffect(() => {
+    if (user?.location?.lat && user?.location?.lon) {
+      const lat = user.location.lat;
+      const lon = user.location.lon;
+      fetchWeather(lat, lon);
+      const interval = setInterval(() => {
+        fetchWeather(lat, lon);
+      }, 15 * 60 * 1000);
+      return () => clearInterval(interval);
+    }
+  }, [user?.location?.lat, user?.location?.lon, fetchWeather]);
+
   return (
-    <BrowserRouter>
+    <>
       {/* Animated ocean background - fixed behind everything */}
       <OceanBackground />
+
+      {/* Global Location Prompt Modal */}
+      <LocationPromptModal />
 
       <Routes>
         {/* Root Redirect */}
@@ -81,6 +105,8 @@ export default function App() {
           <Route path="/map"        element={<LiveMapPage />} />
           <Route path="/planner"    element={<TripPlannerPage />} />
           <Route path="/weather"    element={<WeatherOceanPage />} />
+          <Route path="/climate"    element={<ClimatePage />} />
+          <Route path="/reports"    element={<ReportsPage />} />
           <Route path="/fishing"    element={<FishingZonesPage />} />
           <Route path="/alerts"     element={<AlertsPage />} />
           <Route path="/boundaries" element={<BoundariesPage />} />
@@ -89,6 +115,6 @@ export default function App() {
           <Route path="/feedback"   element={<FeedbackPage />} />
         </Route>
       </Routes>
-    </BrowserRouter>
+    </>
   )
 }

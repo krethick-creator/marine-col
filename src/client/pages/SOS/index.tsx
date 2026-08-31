@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { AlertTriangle, Phone, MapPin, CheckSquare, Square } from 'lucide-react'
+import { useAppStore } from '../../store'
 
 const checklist = [
   'Life jackets for all crew members',
@@ -13,12 +14,16 @@ const checklist = [
 ]
 
 export default function SOSPage() {
+  const { user } = useAppStore()
   const [checked, setChecked] = useState<boolean[]>(checklist.map(() => false))
   const [sosStep, setSosStep] = useState<'idle' | 'confirm' | 'sent'>('idle')
 
   const toggleCheck = (i: number) => {
     setChecked((prev) => prev.map((v, idx) => (idx === i ? !v : v)))
   }
+
+  const latStr = user.location ? `${user.location.lat.toFixed(4)}°N` : 'N/A'
+  const lonStr = user.location ? `${user.location.lon.toFixed(4)}°E` : 'N/A'
 
   return (
     <div className="page-shell">
@@ -73,7 +78,7 @@ export default function SOSPage() {
             <div style={{ fontSize: 13, color: 'rgba(184,223,240,0.5)', marginBottom: 12 }}>
               [DEMO MODE — No real signal sent. In production, emergency services would be notified.]
             </div>
-            <div style={{ fontSize: 12, color: 'rgba(126,200,227,0.5)' }}>📍 Location: 13.0827°N 80.2707°E · {new Date().toLocaleTimeString()}</div>
+            <div style={{ fontSize: 12, color: 'rgba(126,200,227,0.5)' }}>📍 Location: {latStr} {lonStr} · {new Date().toLocaleTimeString()}</div>
           </div>
         )}
       </div>

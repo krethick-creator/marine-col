@@ -1,6 +1,7 @@
 import { env } from '../../config/env'
 import type { AdvisoryProvider } from './AdvisoryProvider'
 import { MockAdvisoryProvider } from './MockAdvisoryProvider'
+import { RealAdvisoryProvider } from './RealAdvisoryProvider'
 
 let instance: AdvisoryProvider | null = null
 
@@ -10,8 +11,8 @@ export function getAdvisoryProvider(): AdvisoryProvider {
       instance = new MockAdvisoryProvider()
       console.log('[Advisory] Using MockAdvisoryProvider (DEMO DATA)')
     } else {
-      console.warn('[Advisory] Real provider not yet implemented — falling back to mock')
-      instance = new MockAdvisoryProvider()
+      console.log('[Advisory] Using RealAdvisoryProvider (REAL DATA)')
+      instance = new RealAdvisoryProvider()
     }
   }
   return instance

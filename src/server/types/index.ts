@@ -28,6 +28,11 @@ export interface CurrentWeather {
   location: string
   isMockData: boolean
   timestamp: Date
+  pressure?: number
+  windGusts?: number
+  cloudCover?: number
+  sunrise?: string
+  sunset?: string
 }
 
 export interface HourlyWeather {
@@ -59,14 +64,30 @@ export interface WeatherForecast {
   fetchedAt: Date
 }
 
+export interface HistoricalDataPoint {
+  time: string
+  temperature: number | null
+  windSpeed: number | null
+  waveHeight: number | null
+  precipitation: number | null
+  sst: number | null
+  chlorophyll: number | null
+}
+
 // ─── Ocean types ───────────────────────────────────────────────────────
 export interface OceanSnapshot {
-  sst: number               // Sea Surface Temperature °C
-  chlorophyll: number       // mg/m³
-  waveHeight: number        // metres
-  swellDirection: string
-  currentSpeed: number      // knots
-  currentDirection: string
+  sst: number | null               // Sea Surface Temperature °C
+  chlorophyll: number | null       // mg/m³
+  waveHeight: number | null        // metres
+  waveDirection?: number | null    // degrees °
+  wavePeriod?: number | null       // seconds
+  swellHeight?: number | null      // metres
+  swellPeriod: number | null       // seconds
+  swellDirection: string | null
+  currentSpeed: number | null      // km/h
+  currentDirection: string | null
+  seaState?: string | null
+  units?: Record<string, string>
   isMockData: boolean
   dataSource: string
   timestamp: Date
@@ -92,21 +113,27 @@ export interface FishingZone {
 // ─── Satellite ─────────────────────────────────────────────────────────
 export interface SatelliteSnapshot {
   pfzZones: FishingZone[]
+  sst: number | null           // Sea surface temperature °C (point value from ERDDAP)
+  chlorophyll: number | null   // Chlorophyll-a mg/m³ (point value from ERDDAP)
   chlorophyllGrid: unknown | null   // GeoJSON for Phase 7 map
   sstGrid: unknown | null
   isMockData: boolean
   dataSource: string
   issuedAt: Date
+  providerStatus?: ProviderStatus
 }
 
 // ─── Geospatial ────────────────────────────────────────────────────────
 export interface GeospatialSnapshot {
-  routeIntersectsRestricted: boolean
-  routeNearBoundary: boolean
-  distanceToBoundaryNm: number
-  restrictedZonesOnRoute: string[]
-  alternativeRouteAvailable: boolean
-  isMockData: boolean
+  routeIntersectsRestricted: boolean;
+  routeNearBoundary: boolean;
+  distanceToBoundaryNm: number;
+  restrictedZonesOnRoute: string[];
+  alternativeRouteAvailable: boolean;
+  isMockData: boolean;
+  dataSource: string;
+  issuedAt: Date;
+  providerStatus?: ProviderStatus;
 }
 
 // ─── Alerts ────────────────────────────────────────────────────────────
@@ -272,6 +299,19 @@ export interface TripPlan {
   generatedAt: Date
 }
 
+// ─── Provider Result Types ────────────────────────────────────────────────────────
+export type ProviderStatus =
+  | 'REAL_DATA_SUCCESS'
+  | 'REAL_DATA_EMPTY'
+  | 'PROVIDER_UNAVAILABLE'
+  | 'MOCK_DATA';
+
+export interface ProviderResult<T> {
+  data?: T;
+  status: ProviderStatus;
+  error?: string;
+}
+
 // ─── Community ─────────────────────────────────────────────────────────
 export type PostType = 'OBSERVATION' | 'CONDITION_REPORT' | 'ZONE_REPORT' | 'DANGER_REPORT'
 
@@ -339,3 +379,15 @@ export interface ApiError {
 }
 
 export type ApiResponse<T> = ApiSuccess<T> | ApiError
+
+// ─── Route Agent Types ────────────────────────────────────────────────
+export type {
+  BoatProfile,
+  Zone,
+  SafeRouteResult,
+  WaypointTimelineItem,
+  RouteAgentOptions,
+  GridNode,
+  NodeRisk,
+} from '../agents/routeAgent'
+

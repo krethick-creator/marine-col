@@ -14,7 +14,9 @@
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
-    "noEmit": true,
+    "outDir": "./dist/client_types",
+    "composite": true,
+    "emitDeclarationOnly": true,
     "jsx": "react-jsx",
 
     /* Path aliases */
