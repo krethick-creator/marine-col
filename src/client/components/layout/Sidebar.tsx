@@ -1,7 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import {
   Home, Map, Calendar, Cloud, Fish, AlertTriangle,
-  Flag, Users, LifeBuoy, MessageSquare, Wifi, WifiOff, Settings,
+  Flag, Users, LifeBuoy, Wifi, WifiOff, Settings,
   Compass, BarChart2, MapPin
 } from 'lucide-react'
 import OrcaLogo from '../ui/OrcaLogo'
@@ -20,7 +20,6 @@ const navItems = [
   { to: '/boundaries',icon: Flag,          label: 'Boundaries' },
   { to: '/community', icon: Users,         label: 'Community' },
   { to: '/sos',       icon: LifeBuoy,      label: 'SOS & Safety' },
-  { to: '/feedback',  icon: MessageSquare, label: 'Feedback' },
 ]
 
 export default function Sidebar() {

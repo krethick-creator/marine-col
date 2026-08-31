@@ -134,6 +134,7 @@ export interface GeospatialSnapshot {
   dataSource: string;
   issuedAt: Date;
   providerStatus?: ProviderStatus;
+  nearbyBoundaries?: any[];
 }
 
 // ─── Alerts ────────────────────────────────────────────────────────────

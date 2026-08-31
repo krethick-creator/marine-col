@@ -1,4 +1,4 @@
-﻿import { OrcaState } from './OrcaState';
+import { OrcaState } from './OrcaState';
 import { SystemMessage } from '@langchain/core/messages';
 import { groqModelRouter } from '../llm/GroqModelRouter';
 import { getSatelliteProvider } from '../services/satellite';
@@ -40,25 +40,99 @@ function markExecuted(agentName: string, currentSet: Set<string>): string[] {
   return Array.from(currentSet);
 }
 
+/**
+ * Returns true when the agent is listed in _requiredAgents for this request.
+ * Falls back to true (allow) when _requiredAgents is absent (backwards compat).
+ */
+function isAgentRequired(shortName: string, state: typeof OrcaState.State): boolean {
+  const required: string[] | undefined = state.contextData?._requiredAgents;
+  if (!Array.isArray(required)) return true; // no list yet → allow
+  return required.includes(shortName);
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
-// Planner Agent — determines high-level intent via LLM
+// Intent detection helpers
+// ──────────────────────────────────────────────────────────────────────────────
+
+// Rule-based conversational patterns — fast, no LLM call needed
+const CONVERSATIONAL_PATTERNS = [
+  /^(hi|hey|hello|hiya|howdy|yo)\b/i,
+  /^(good\s+(morning|afternoon|evening|night|day))\b/i,
+  /^(thanks|thank\s+you|thx|ty|cheers)\b/i,
+  /^(bye|goodbye|see\s+you|cya|take\s+care)\b/i,
+  /^(who\s+are\s+you|what\s+are\s+you)\b/i,
+  /^(what\s+can\s+you\s+do|what\s+do\s+you\s+do|how\s+can\s+you\s+help|help\s+me|help)\b/i,
+  /^(ok|okay|sure|alright|great|nice|cool|got\s+it|understood)\b/i,
+  /^(tell\s+me\s+about\s+yourself)\b/i,
+  /^(what\s+is\s+orca|who\s+is\s+orca)\b/i,
+];
+
+function detectConversationalIntent(query: string): boolean {
+  const trimmed = query.trim();
+  // Very short queries with no marine keywords are almost always conversational
+  const marineKeywords = ['weather', 'ocean', 'wave', 'wind', 'satellite', 'chlorophyll',
+    'sst', 'alert', 'warning', 'fishing', 'trip', 'safe', 'danger', 'cyclone',
+    'tide', 'current', 'storm', 'rain', 'temperature', 'boundary', 'port', 'harbour',
+    'pfz', 'sea', 'marine', 'boat', 'sail', 'vessel', 'navigate', 'coast', 'ship'];
+  const hasMarineKeyword = marineKeywords.some(kw => trimmed.toLowerCase().includes(kw));
+  if (hasMarineKeyword) return false;
+  return CONVERSATIONAL_PATTERNS.some(p => p.test(trimmed));
+}
+
+// Map LLM intent strings to our canonical intent categories
+function normalizeIntent(raw: string): string {
+  const r = raw.toLowerCase().trim();
+  // Strip surrounding quotes or whitespace the LLM might add
+  const cleaned = r.replace(/^['"`]+|['"`]+$/g, '').trim();
+  if (['conversational', 'greeting', 'casual', 'chitchat', 'chit-chat', 'help'].includes(cleaned)) return 'conversational';
+  if (['weather', 'temperature', 'wind', 'rain', 'forecast'].includes(cleaned)) return 'weather';
+  if (['ocean', 'wave', 'swell', 'tide', 'current', 'sea_state', 'sea state'].includes(cleaned)) return 'ocean';
+  if (['satellite', 'sst', 'chlorophyll', 'pfz'].includes(cleaned)) return 'satellite';
+  if (['alert', 'alerts', 'warning', 'cyclone', 'advisory'].includes(cleaned)) return 'alerts';
+  if (['geospatial', 'boundary', 'zone', 'restricted'].includes(cleaned)) return 'geospatial';
+  if (['safety', 'safe', 'danger', 'risk'].includes(cleaned)) return 'safety';
+  if (['trip_planning', 'trip', 'navigate', 'navigation', 'route'].includes(cleaned)) return 'trip_planning';
+  if (['fishing', 'fish', 'catch'].includes(cleaned)) return 'fishing';
+  return 'general_marine';
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Planner Agent — determines high-level intent
 // ──────────────────────────────────────────────────────────────────────────────
 export const plannerAgent = async (state: typeof OrcaState.State) => {
   console.log('[Planner Agent] Started');
-  const prompt = `You are the ORCA Planner Agent. Analyze the user's query and determine the intent.
-Possible intents: 'weather', 'fishing', 'trip_planning', 'safety', 'general'.
+
+  // Fast rule-based detection first — avoids an LLM call for greetings
+  if (detectConversationalIntent(state.query)) {
+    console.log('[Planner Agent] Intent: conversational (rule-based)');
+    console.log('[Planner Agent] Completed');
+    return { intent: 'conversational', executedSteps: ['plannerAgent'] };
+  }
+
+  const prompt = `You are the ORCA Planner Agent. Analyze the user's query and classify its intent.
+
+Possible intents:
+- conversational  (greetings, thanks, "who are you", "what can you do", small talk)
+- weather         (temperature, wind, rain, forecast, humidity)
+- ocean           (waves, swell, tides, currents, sea state)
+- satellite       (SST satellite, chlorophyll, PFZ, remote sensing)
+- alerts          (warnings, cyclone alerts, maritime advisories)
+- geospatial      (boundaries, restricted zones, coastal areas)
+- safety          (is it safe, danger, risk assessment)
+- trip_planning   (plan a trip, route from A to B, navigate)
+- fishing         (fishing conditions, fishing zones, best catch)
+- general_marine  (broad/mixed marine queries)
+
 Query: "${state.query}"
-Respond with ONLY the intent string.`;
+
+Respond with ONLY the single intent string, nothing else.`;
 
   const response = await groqModelRouter.invoke([new SystemMessage(prompt)], 'planning');
-  const intent = response.response.trim().toLowerCase();
+  const intent = normalizeIntent(response.response);
   console.log(`[Planner Agent] Intent: ${intent}`);
   console.log('[Planner Agent] Completed');
 
-  return {
-    intent,
-    executedSteps: ['plannerAgent']
-  };
+  return { intent, executedSteps: ['plannerAgent'] };
 };
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -75,39 +149,61 @@ export const dataDiscoveryAgent = async (state: typeof OrcaState.State) => {
 // ──────────────────────────────────────────────────────────────────────────────
 export const agentRouterNode = async (state: typeof OrcaState.State) => {
   const queryLower = state.query.toLowerCase();
-  const intent = state.intent ?? 'general';
+  const intent = state.intent ?? 'general_marine';
 
-  // Determine which agents are needed for this request
-  const needsWeather = true; // always useful
-  const needsOcean = true;   // always useful
-  const needsSatellite = intent === 'fishing' || intent === 'trip_planning' ||
-    queryLower.includes('satellite') || queryLower.includes('chlorophyll') ||
-    queryLower.includes('sst') || queryLower.includes('pfz') || queryLower.includes('fishing');
-  const needsGeospatial = intent === 'fishing' || intent === 'trip_planning' || intent === 'safety' ||
-    queryLower.includes('boundary') || queryLower.includes('restricted') ||
-    queryLower.includes('safe') || queryLower.includes('trip') ||
-    queryLower.includes('travel') || queryLower.includes('alert') ||
-    queryLower.includes('geospatial');
-  const needsAlert = intent === 'fishing' || intent === 'trip_planning' || intent === 'safety' ||
-    intent === 'weather' || queryLower.includes('alert') || queryLower.includes('warning') ||
-    queryLower.includes('trip') || queryLower.includes('travel') || queryLower.includes('fishing');
-  const needsRisk = intent === 'fishing' || intent === 'trip_planning' || intent === 'safety' ||
-    queryLower.includes('safe') || queryLower.includes('trip') ||
-    queryLower.includes('travel') || queryLower.includes('danger');
+  let requiredAgents: string[];
 
-  const requiredAgents = [
-    'weather',
-    'ocean',
-    ...(needsSatellite ? ['satellite'] : []),
-    ...(needsGeospatial ? ['geospatial'] : []),
-    ...(needsAlert ? ['alert'] : []),
-    ...(needsRisk ? ['risk'] : []),
-    'synthesis',
-  ];
+  if (intent === 'conversational') {
+    // Conversational — no data agents at all, just synthesis for a natural reply
+    requiredAgents = ['synthesis'];
+
+  } else if (intent === 'weather') {
+    requiredAgents = ['weather', 'synthesis'];
+
+  } else if (intent === 'ocean') {
+    requiredAgents = ['ocean', 'synthesis'];
+
+  } else if (intent === 'satellite') {
+    requiredAgents = ['satellite', 'synthesis'];
+
+  } else if (intent === 'alerts') {
+    requiredAgents = ['alert', 'synthesis'];
+
+  } else if (intent === 'geospatial') {
+    requiredAgents = ['weather', 'geospatial', 'alert', 'synthesis'];
+
+  } else if (intent === 'safety') {
+    requiredAgents = ['weather', 'ocean', 'geospatial', 'alert', 'risk', 'synthesis'];
+
+  } else if (intent === 'fishing') {
+    requiredAgents = ['weather', 'ocean', 'satellite', 'geospatial', 'alert', 'risk', 'synthesis'];
+
+  } else if (intent === 'trip_planning') {
+    requiredAgents = ['weather', 'ocean', 'satellite', 'geospatial', 'alert', 'risk', 'synthesis'];
+
+  } else {
+    // general_marine — standard full set: weather + ocean + alerts but no satellite by default
+    // unless the query explicitly asks for satellite/chlorophyll data
+    const wantsSatellite = queryLower.includes('satellite') || queryLower.includes('chlorophyll') ||
+      queryLower.includes('sst') || queryLower.includes('pfz');
+    const wantsGeospatial = queryLower.includes('boundary') || queryLower.includes('restricted') ||
+      queryLower.includes('zone') || queryLower.includes('geospatial');
+    const wantsRisk = queryLower.includes('safe') || queryLower.includes('danger') ||
+      queryLower.includes('risk');
+
+    requiredAgents = [
+      'weather',
+      'ocean',
+      ...(wantsSatellite ? ['satellite'] : []),
+      ...(wantsGeospatial ? ['geospatial'] : []),
+      'alert',
+      ...(wantsRisk ? ['risk'] : []),
+      'synthesis',
+    ];
+  }
 
   console.log(`[Agent Router] Required agents: ${requiredAgents.join(', ')}`);
 
-  // Initialise the request-scoped deduplication set
   return {
     contextData: {
       _requiredAgents: requiredAgents,
@@ -121,6 +217,10 @@ export const agentRouterNode = async (state: typeof OrcaState.State) => {
 // Weather Agent
 // ──────────────────────────────────────────────────────────────────────────────
 export const weatherAgent = async (state: typeof OrcaState.State) => {
+  if (!isAgentRequired('weather', state)) {
+    console.log('[Agent Router] Skipping non-required agent: weatherAgent');
+    return {};
+  }
   const executedSet = getExecutedSet(state);
   if (executedSet.has('weatherAgent')) {
     console.log('[Agent Router] Skipping duplicate agent: weatherAgent');
@@ -167,6 +267,10 @@ export const weatherAgent = async (state: typeof OrcaState.State) => {
 // Ocean Agent
 // ──────────────────────────────────────────────────────────────────────────────
 export const oceanAgent = async (state: typeof OrcaState.State) => {
+  if (!isAgentRequired('ocean', state)) {
+    console.log('[Agent Router] Skipping non-required agent: oceanAgent');
+    return {};
+  }
   const executedSet = getExecutedSet(state);
   if (executedSet.has('oceanAgent')) {
     console.log('[Agent Router] Skipping duplicate agent: oceanAgent');
@@ -203,19 +307,13 @@ export const oceanAgent = async (state: typeof OrcaState.State) => {
 // Satellite Agent
 // ──────────────────────────────────────────────────────────────────────────────
 export const satelliteAgent = async (state: typeof OrcaState.State) => {
+  if (!isAgentRequired('satellite', state)) {
+    console.log('[Agent Router] Skipping non-required agent: satelliteAgent');
+    return {};
+  }
   const executedSet = getExecutedSet(state);
   if (executedSet.has('satelliteAgent')) {
     console.log('[Agent Router] Skipping duplicate agent: satelliteAgent');
-    return {};
-  }
-
-  const queryLower = state.query.toLowerCase();
-  const isRelevant = state.intent === 'fishing' || state.intent === 'trip_planning' ||
-    queryLower.includes('satellite') || queryLower.includes('imagery') ||
-    queryLower.includes('chlorophyll') || queryLower.includes('sst') ||
-    queryLower.includes('pfz') || queryLower.includes('fishing');
-
-  if (!isRelevant) {
     return {};
   }
 
@@ -265,20 +363,13 @@ export const satelliteAgent = async (state: typeof OrcaState.State) => {
 // Geospatial Agent
 // ──────────────────────────────────────────────────────────────────────────────
 export const geospatialAgent = async (state: typeof OrcaState.State) => {
+  if (!isAgentRequired('geospatial', state)) {
+    console.log('[Agent Router] Skipping non-required agent: geospatialAgent');
+    return {};
+  }
   const executedSet = getExecutedSet(state);
   if (executedSet.has('geospatialAgent')) {
     console.log('[Agent Router] Skipping duplicate agent: geospatialAgent');
-    return {};
-  }
-
-  const queryLower = state.query.toLowerCase();
-  const isRelevant = state.intent === 'fishing' || state.intent === 'trip_planning' || state.intent === 'safety' ||
-    queryLower.includes('boundary') || queryLower.includes('restricted') ||
-    queryLower.includes('safe') || queryLower.includes('trip') ||
-    queryLower.includes('travel') || queryLower.includes('alert') ||
-    queryLower.includes('geospatial');
-
-  if (!isRelevant) {
     return {};
   }
 
@@ -297,18 +388,26 @@ export const geospatialAgent = async (state: typeof OrcaState.State) => {
   console.log('[Geospatial Agent] Started');
   const geoProv = getGeospatialProvider();
   try {
-    const result = await geoProv.analyseRoute(
-      { lat: location.lat, lon: location.lon },
-      { lat: location.lat, lon: location.lon },
-      []
-    );
-    const { data, status, error } = result;
+    const [routeResult, boundaries] = await Promise.all([
+      geoProv.analyseRoute(
+        { lat: location.lat, lon: location.lon },
+        { lat: location.lat, lon: location.lon },
+        []
+      ),
+      geoProv.getNearbyBoundaries({ lat: location.lat, lon: location.lon }).catch(() => [])
+    ]);
+
+    const { data, status, error } = routeResult;
     console.log('[Geospatial Agent] Provider status:', status);
     console.log('[Geospatial Agent] Completed');
     const updated = markExecuted('geospatialAgent', executedSet);
+    
+    // Merge boundaries into geospatial data
+    const geospatialData = data ? { ...data, nearbyBoundaries: boundaries } : { nearInternationalBoundary: false, nearRestrictedZone: false, nearbyBoundaries: boundaries };
+    
     return {
       contextData: {
-        geospatial: data || { nearInternationalBoundary: false, nearRestrictedZone: false },
+        geospatial: geospatialData,
         geospatialStatus: status,
         geospatialError: error || null,
         _executedAgents: updated,
@@ -335,19 +434,13 @@ export const geospatialAgent = async (state: typeof OrcaState.State) => {
 // Alert Agent
 // ──────────────────────────────────────────────────────────────────────────────
 export const alertAgent = async (state: typeof OrcaState.State) => {
+  if (!isAgentRequired('alert', state)) {
+    console.log('[Agent Router] Skipping non-required agent: alertAgent');
+    return {};
+  }
   const executedSet = getExecutedSet(state);
   if (executedSet.has('alertAgent')) {
     console.log('[Agent Router] Skipping duplicate agent: alertAgent');
-    return {};
-  }
-
-  const queryLower = state.query.toLowerCase();
-  const isRelevant = state.intent === 'fishing' || state.intent === 'trip_planning' ||
-    state.intent === 'safety' || state.intent === 'weather' ||
-    queryLower.includes('alert') || queryLower.includes('warning') ||
-    queryLower.includes('trip') || queryLower.includes('travel') || queryLower.includes('fishing');
-
-  if (!isRelevant) {
     return {};
   }
 
@@ -391,18 +484,13 @@ export const alertAgent = async (state: typeof OrcaState.State) => {
 // Risk Agent — deterministic risk engine, never overrides with LLM
 // ──────────────────────────────────────────────────────────────────────────────
 export const riskAgent = async (state: typeof OrcaState.State) => {
+  if (!isAgentRequired('risk', state)) {
+    console.log('[Agent Router] Skipping non-required agent: riskAgent');
+    return {};
+  }
   const executedSet = getExecutedSet(state);
   if (executedSet.has('riskAgent')) {
     console.log('[Agent Router] Skipping duplicate agent: riskAgent');
-    return {};
-  }
-
-  const queryLower = state.query.toLowerCase();
-  const isRelevant = state.intent === 'fishing' || state.intent === 'trip_planning' || state.intent === 'safety' ||
-    queryLower.includes('safe') || queryLower.includes('trip') ||
-    queryLower.includes('travel') || queryLower.includes('danger');
-
-  if (!isRelevant) {
     return {};
   }
 
@@ -648,6 +736,14 @@ function buildStructuredContext(state: typeof OrcaState.State): string {
     lines.push(`Near boundary: ${geospatial.routeNearBoundary === true || geospatial.nearInternationalBoundary === true ? 'Yes' : 'No'}`);
     lines.push(`Distance to boundary: ${geospatial.distanceToBoundaryNm != null ? geospatial.distanceToBoundaryNm + ' nm' : 'Unavailable'}`);
     lines.push(`Route intersects restricted zone: ${geospatial.routeIntersectsRestricted === true ? 'Yes' : 'No'}`);
+    if (geospatial.nearbyBoundaries && geospatial.nearbyBoundaries.length > 0) {
+      lines.push('Nearby Boundaries:');
+      geospatial.nearbyBoundaries.forEach((b: any) => {
+        lines.push(`- ${b.name} (${b.type.replace('_', ' ')}): ${b.distanceMeters > 1000 ? (b.distanceMeters/1000).toFixed(1) + ' km' : b.distanceMeters + ' m'} ${b.direction}. Status: ${b.status}`);
+      });
+    } else if (geospatial.nearbyBoundaries) {
+      lines.push('Nearby Boundaries: None found within 50km.');
+    }
   } else {
     lines.push(`Status: ${ctx.geospatialStatus ?? 'PROVIDER_UNAVAILABLE'}`);
     lines.push(ctx.geospatialError ?? 'Geospatial data unavailable.');
@@ -658,14 +754,37 @@ function buildStructuredContext(state: typeof OrcaState.State): string {
 
 export const synthesisAgent = async (state: typeof OrcaState.State) => {
   if (state.finalResponse) {
-    return {
-      executedSteps: ['synthesisAgent']
-    };
+    return { executedSteps: ['synthesisAgent'] };
   }
 
   console.log('[Agent Router] Executing: synthesisAgent');
   console.log('[Agent Router] Execution complete');
 
+  const intent = state.intent ?? 'general_marine';
+
+  // ── Conversational path — no marine data report ──────────────────────────────
+  if (intent === 'conversational') {
+    const conversationalPrompt = `You are ORCA, a professional marine intelligence assistant for fishermen and marine operators in Indian coastal waters.
+
+The user sent a conversational message: "${state.query}"
+
+Respond naturally and briefly (2-4 sentences max). If it is a greeting, greet back warmly.
+If they ask who you are or what you can do, give a concise overview of your capabilities:
+- Real-time weather and ocean conditions
+- Satellite SST and chlorophyll data
+- Marine alerts and cyclone warnings
+- Geospatial boundary and restricted zone info
+- Safe fishing zone recommendations
+- Trip planning and route safety assessments
+
+Do NOT generate a marine conditions report. Do NOT include any data tables or weather/ocean values.
+Keep the response friendly, short, and conversational.`;
+
+    const response = await groqModelRouter.invoke([new SystemMessage(conversationalPrompt)], 'synthesis');
+    return { finalResponse: response.response, executedSteps: ['synthesisAgent'] };
+  }
+
+  // ── Marine data synthesis path ───────────────────────────────────────────────
   const structuredContext = buildStructuredContext(state);
   const riskDump = state.riskAssessment
     ? `Level: ${state.riskAssessment.level}\nReasons:\n${(state.riskAssessment.reasoning ?? []).map((r: string) => '- ' + r).join('\n')}`
@@ -684,6 +803,7 @@ STRICT RULES:
 6. Do NOT override or modify the Risk Assessment level — it is deterministic.
 7. Use exact numbers from the context. Do not round or estimate differently.
 8. Location to use: ${locationName}
+9. Only include sections for data that was actually requested/fetched. If satellite data was not requested, do not include a Satellite section.
 
 Risk Assessment (DO NOT OVERRIDE):
 ${riskDump}

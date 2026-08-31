@@ -29,6 +29,30 @@ router.get('/', async (req: Request, res: Response) => {
   }
 })
 
+// GET /api/geospatial/boundaries?lat={lat}&lon={lon}
+router.get('/boundaries', async (req: Request, res: Response) => {
+  const parsed = latLonSchema.safeParse(req.query)
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, error: 'Invalid or missing lat/lon parameters' })
+  }
+
+  try {
+    const provider = getGeospatialProvider()
+    const boundaries = await provider.getNearbyBoundaries(parsed.data)
+    
+    res.json({
+      ok: true,
+      data: { boundaries },
+      providerStatus: provider.isMock ? 'MOCK_DATA' : 'REAL_DATA_SUCCESS',
+      isMockData: provider.isMock,
+      timestamp: new Date().toISOString()
+    })
+  } catch (err) {
+    console.error('Boundaries fetch error:', err)
+    res.status(500).json({ ok: false, error: 'Failed to fetch boundaries' })
+  }
+})
+
 let _featuresPool: Pool | null = null
 function getFeaturesPool(): Pool {
   if (!_featuresPool) {

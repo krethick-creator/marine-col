@@ -1,4 +1,4 @@
-﻿import type { GeospatialProvider } from './GeospatialProvider'
+import type { GeospatialProvider } from './GeospatialProvider'
 import type { GeospatialSnapshot, LatLon, ProviderResult } from '../../types'
 
 function haversineKm(a: LatLon, b: LatLon): number {
@@ -48,5 +48,9 @@ export class MockGeospatialProvider implements GeospatialProvider {
   async nearestFishingZoneKm(location: LatLon): Promise<number> {
     const base = haversineKm(location, { lat: location.lat, lon: location.lon + 0.1 })
     return parseFloat((base * 3 + 12).toFixed(1))
+  }
+
+  async getNearbyBoundaries(location: LatLon): Promise<any> {
+    return []
   }
 }

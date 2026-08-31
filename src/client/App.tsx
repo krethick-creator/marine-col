@@ -22,7 +22,6 @@ import AlertsPage from './pages/Alerts'
 import BoundariesPage from './pages/Boundaries'
 import CommunityPage from './pages/Community'
 import SOSPage from './pages/SOS'
-import FeedbackPage from './pages/Feedback'
 
 // Protected Route Wrapper
 const ProtectedRoute = () => {
@@ -112,7 +111,6 @@ export default function App() {
           <Route path="/boundaries" element={<BoundariesPage />} />
           <Route path="/community"  element={<CommunityPage />} />
           <Route path="/sos"        element={<SOSPage />} />
-          <Route path="/feedback"   element={<FeedbackPage />} />
         </Route>
       </Routes>
     </>
