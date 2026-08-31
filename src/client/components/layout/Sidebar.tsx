@@ -7,26 +7,28 @@ import {
 import OrcaLogo from '../ui/OrcaLogo'
 import { useAppStore } from '../../store'
 import { useAuthStore } from '../../store/authStore'
-
-const navItems = [
-  { to: '/home',      icon: Home,          label: 'Home',             end: true },
-  { to: '/map',       icon: Map,           label: 'Live Map' },
-  { to: '/planner',   icon: Calendar,      label: 'Trip Planner' },
-  { to: '/weather',   icon: Cloud,         label: 'Weather & Ocean' },
-  { to: '/climate',   icon: Compass,       label: 'Climate Patterns' },
-  { to: '/reports',   icon: BarChart2,     label: 'Reports & Analytics' },
-  { to: '/fishing',   icon: Fish,          label: 'Fishing Zones' },
-  { to: '/alerts',    icon: AlertTriangle, label: 'Alerts & Warnings', badge: true },
-  { to: '/boundaries',icon: Flag,          label: 'Boundaries' },
-  { to: '/community', icon: Users,         label: 'Community' },
-  { to: '/sos',       icon: LifeBuoy,      label: 'SOS & Safety' },
-  { to: '/feedback',  icon: MessageSquare, label: 'Feedback' },
-]
+import { useTranslation } from '../../locales'
 
 export default function Sidebar() {
   const { currentWeather, weatherLoading, weatherError, offlineMode, toggleOfflineMode, unreadAlertCount, user: appUser } = useAppStore()
   const { user } = useAuthStore()
   const location = useLocation()
+  const { t } = useTranslation()
+
+  const navItems = [
+    { to: '/home',      icon: Home,          label: t('nav.home'),             end: true },
+    { to: '/map',       icon: Map,           label: t('nav.liveMap') },
+    { to: '/planner',   icon: Calendar,      label: t('nav.tripPlanner') },
+    { to: '/weather',   icon: Cloud,         label: t('nav.weather') },
+    { to: '/climate',   icon: Compass,       label: t('nav.climate') },
+    { to: '/reports',   icon: BarChart2,     label: t('nav.reports') },
+    { to: '/fishing',   icon: Fish,          label: t('nav.fishing') },
+    { to: '/alerts',    icon: AlertTriangle, label: t('nav.alerts'), badge: true },
+    { to: '/boundaries',icon: Flag,          label: t('nav.boundaries') },
+    { to: '/community', icon: Users,         label: t('nav.community') },
+    { to: '/sos',       icon: LifeBuoy,      label: t('nav.sos') },
+    { to: '/feedback',  icon: MessageSquare, label: t('nav.feedback') },
+  ]
 
   return (
     <aside className="sidebar">
@@ -38,13 +40,13 @@ export default function Sidebar() {
             ORCA
           </div>
           <div style={{ fontSize: 11, color: 'var(--text-light)', fontWeight: 500, letterSpacing: '0.02em', marginTop: 2 }}>
-            Navigate Smarter. Talk Safely.
+            {t('sidebar.tagline')}
           </div>
         </div>
       </div>
 
       {/* Nav label */}
-      <div className="nav-section-label">Navigation</div>
+      <div className="nav-section-label">{t('nav.section')}</div>
 
       {/* Nav items */}
       {navItems.map(({ to, icon: Icon, label, badge, end }) => {
@@ -75,22 +77,22 @@ export default function Sidebar() {
         {/* Weather mini card */}
         <div className="weather-mini-card" style={{ minHeight: 64, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           {!appUser.location ? (
-            <div 
+            <div
               style={{ fontSize: 13, color: 'var(--accent-blue)', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}
               onClick={() => useAppStore.getState().setShowLocationModal(true)}
             >
-              <MapPin size={14} /> Set Location
+              <MapPin size={14} /> {t('sidebar.setLocation')}
             </div>
           ) : weatherLoading && !currentWeather ? (
-            <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>Loading weather...</div>
+            <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{t('sidebar.loadingWeather')}</div>
           ) : weatherError && !currentWeather ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <div style={{ fontSize: 12, color: 'var(--status-nogo)' }}>Weather unavailable</div>
-              <span 
+              <div style={{ fontSize: 12, color: 'var(--status-nogo)' }}>{t('sidebar.weatherUnavailable')}</div>
+              <span
                 style={{ fontSize: 11, color: 'var(--accent-blue)', cursor: 'pointer', fontWeight: 500 }}
                 onClick={() => useAppStore.getState().setShowLocationModal(true)}
               >
-                Change Location
+                {t('sidebar.changeLocation')}
               </span>
             </div>
           ) : currentWeather ? (
@@ -110,16 +112,16 @@ export default function Sidebar() {
                 <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: 120 }}>
                   {appUser.locationName || currentWeather.location}
                 </span>
-                <span 
+                <span
                   style={{ fontSize: 10, color: 'var(--accent-blue)', cursor: 'pointer', fontWeight: 600 }}
                   onClick={() => useAppStore.getState().setShowLocationModal(true)}
                 >
-                  Change
+                  {t('sidebar.change')}
                 </span>
               </div>
             </>
           ) : (
-            <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>No data</div>
+            <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{t('sidebar.noData')}</div>
           )}
         </div>
 
@@ -127,10 +129,10 @@ export default function Sidebar() {
         <div className="offline-toggle">
           <div>
             <div style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-              {offlineMode ? 'Offline Mode' : 'Online'}
+              {offlineMode ? t('sidebar.offlineMode') : t('sidebar.online')}
             </div>
             <div style={{ fontSize: 10, color: 'var(--text-light)', marginTop: 2 }}>
-              {offlineMode ? 'Data saved for offline use' : 'Live data active'}
+              {offlineMode ? t('sidebar.offlineDesc') : t('sidebar.onlineDesc')}
             </div>
           </div>
           <div

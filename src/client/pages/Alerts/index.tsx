@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { fetchActiveAlerts } from '../../services/api/alertService'
+import { fetchActiveAlerts } from '../../services/api/alertService'
 import { useAppStore } from '../../store'
 import type { Alert } from '../../types'
+import { useTranslation } from '../../locales'
 
 const severityConfig: Record<Alert['severity'], { color: string; bg: string; border: string; icon: string }> = {
   CRITICAL: { color: '#f87171', bg: 'rgba(239,68,68,0.10)', border: 'rgba(239,68,68,0.3)', icon: '🚨' },
@@ -11,9 +13,11 @@ const severityConfig: Record<Alert['severity'], { color: string; bg: string; bor
 }
 
 export default function AlertsPage() {
+export default function AlertsPage() {
   const user = useAppStore(state => state.user)
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [loading, setLoading] = useState(true)
+  const { t } = useTranslation()
 
   useEffect(() => {
     if (user?.location?.lat && user?.location?.lon) {
@@ -31,20 +35,20 @@ export default function AlertsPage() {
     <div className="page-shell">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Alerts & Warnings</h1>
-          <p className="page-subtitle">Active marine advisories and safety alerts for your region</p>
+          <h1 className="page-title">{t('alerts.title')}</h1>
+          <p className="page-subtitle">{t('alerts.subtitle')}</p>
         </div>
       </div>
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: 40, color: 'rgba(255,255,255,0.6)' }}>
-          Loading active alerts...
+          {t('alerts.loading')}
         </div>
       ) : alerts.length === 0 ? (
         <div className="glass-card" style={{ padding: 40, textAlign: 'center' }}>
           <div style={{ fontSize: 36, marginBottom: 12 }}>✅</div>
-          <div style={{ color: '#4ade80', fontWeight: 600 }}>No active alerts</div>
-          <div style={{ fontSize: 13, color: 'rgba(184,223,240,0.4)', marginTop: 4 }}>All clear in your region</div>
+          <div style={{ color: '#4ade80', fontWeight: 600 }}>{t('alerts.none')}</div>
+          <div style={{ fontSize: 13, color: 'rgba(184,223,240,0.4)', marginTop: 4 }}>{t('alerts.allClear')}</div>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -61,17 +65,17 @@ export default function AlertsPage() {
                         {alert.severity}
                       </div>
                       {alert.isMockData && (
-                        <div style={{ fontSize: 10, color: 'rgba(251,191,36,0.5)' }}>DEMO</div>
+                        <div style={{ fontSize: 10, color: 'rgba(251,191,36,0.5)' }}>{t('chat.demo')}</div>
                       )}
                     </div>
                     <div style={{ fontSize: 13.5, color: 'rgba(184,223,240,0.75)', lineHeight: 1.6, marginBottom: 8 }}>
                       {alert.description}
                     </div>
                     <div style={{ fontSize: 11, color: 'rgba(126,200,227,0.4)', display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                      <span>Source: {alert.source}</span>
-                      <span>Issued: {alert.issuedAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+                      <span>{t('alerts.source')} {alert.source}</span>
+                      <span>{t('alerts.issued')} {alert.issuedAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
                       {alert.validUntil && (
-                        <span>Valid until: {alert.validUntil.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+                        <span>{t('alerts.validUntil')} {alert.validUntil.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
                       )}
                     </div>
                   </div>

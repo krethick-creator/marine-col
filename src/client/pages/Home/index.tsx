@@ -11,16 +11,7 @@ import {
 } from '../../services/mockProviders/mockData'
 import { useChatStore, useAppStore } from '../../store'
 import type { ChatMessage, AgentTraceStep } from '../../types'
-
-// ─── Suggestion chips ─────────────────────────────────────────────────
-const suggestions = [
-  'Is it safe to go fishing tomorrow?',
-  'Find the nearest fishing zone.',
-  'Plan a 3-day fishing trip.',
-  'Show dangerous zones near me.',
-  'What are the wave conditions tomorrow morning?',
-  'Check boundary safety for my route.',
-]
+import { useTranslation } from '../../locales'
 
 // ─── Simulated agent processing delay ─────────────────────────────────
 const AGENT_STEP_DELAY_MS = 600
@@ -30,6 +21,7 @@ export default function HomePage() {
   const [input, setInput] = useState('')
   const [agentSteps, setAgentSteps] = useState<AgentTraceStep[]>([])
   const [localAgentIndex, setLocalAgentIndex] = useState(-1)
+  const { t } = useTranslation()
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -212,7 +204,7 @@ export default function HomePage() {
 
       <div className={`chat-input-area ${!hasMessages ? 'centered-input' : ''}`}>
         <div className="chat-input-wrapper">
-          <button className="input-plus-btn" aria-label="Attach file" title="Attach file">
+          <button className="input-plus-btn" aria-label={t('chat.attach')} title={t('chat.attach')}>
             <Plus size={22} />
           </button>
 
@@ -222,23 +214,23 @@ export default function HomePage() {
             value={input}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
-            placeholder="Ask ORCA anything..."
+            placeholder={t('chat.placeholder')}
             rows={1}
             disabled={isLoading}
           />
 
           <div className="chat-input-actions">
-            <button className="input-action-btn" aria-label="Reasoning Agent" title="Reasoning">
+            <button className="input-action-btn" aria-label={t('chat.reasoning')} title={t('chat.reasoning')}>
               <Brain size={18} />
             </button>
-            <button className="input-action-btn" aria-label="Voice input" title="Voice input">
+            <button className="input-action-btn" aria-label={t('chat.voice')} title={t('chat.voice')}>
               <Mic size={18} />
             </button>
             <button
               className="send-btn"
               onClick={handleSubmit}
               disabled={!input.trim() || isLoading}
-              aria-label="Send message"
+              aria-label={t('chat.send')}
             >
               {isLoading
                 ? <div style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />

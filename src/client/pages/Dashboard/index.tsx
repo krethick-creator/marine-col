@@ -6,12 +6,14 @@ import { fetchActiveAlerts } from '../../services/api/alertService';
 import type { Alert } from '../../types';
 
 import { useAppStore } from '../../store';
+import { useTranslation } from '../../locales';
 
 export default function DashboardPage() {
   const { user: authUser } = useAuthStore();
   const appUser = useAppStore(state => state.user);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
+  const { t } = useTranslation();
 
   useEffect(() => {
     const lat = appUser.location?.lat ?? 13.0827;
@@ -29,13 +31,13 @@ export default function DashboardPage() {
     <div className="page-shell">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Dashboard</h1>
-          <p className="page-subtitle">Welcome back, {authUser?.name || 'User'}</p>
+          <h1 className="page-title">{t('dashboard.title')}</h1>
+          <p className="page-subtitle">{t('dashboard.welcome')} {authUser?.name || t('profile.guest')}</p>
         </div>
         
         <div className="glass" style={{ padding: '8px 16px', borderRadius: 99, display: 'flex', alignItems: 'center', gap: 10 }}>
           <div className="live-dot" style={{ background: 'var(--status-go)' }} />
-          <span style={{ fontSize: 13, fontWeight: 600 }}>System Active</span>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>{t('dashboard.systemActive')}</span>
         </div>
       </div>
 
@@ -48,22 +50,22 @@ export default function DashboardPage() {
               {authUser?.name?.charAt(0) || 'U'}
             </div>
             <div>
-              <div style={{ fontSize: 20, fontWeight: 700 }}>{authUser?.name || 'Guest'}</div>
-              <div style={{ color: 'var(--text-light)', fontSize: 14 }}>{authUser?.role || 'Fisherman'}</div>
+              <div style={{ fontSize: 20, fontWeight: 700 }}>{authUser?.name || t('profile.guest')}</div>
+              <div style={{ color: 'var(--text-light)', fontSize: 14 }}>{authUser?.role || t('sidebar.fisherman')}</div>
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--text-light)', fontSize: 14 }}>
               <MapPin size={18} color="var(--accent-blue)" />
-              {appUser?.locationName || 'Select Location'}
+              {appUser?.locationName || t('weather.selectLocationShort')}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--text-light)', fontSize: 14 }}>
               <ShieldAlert size={18} color="var(--status-go)" />
-              Safety Status: Safe to operate
+              {t('dashboard.safetyStatus')}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--text-light)', fontSize: 14 }}>
               <Clock size={18} color="var(--text-muted)" />
-              Last active: Just now
+              {t('dashboard.lastActive')}
             </div>
           </div>
         </div>
@@ -74,7 +76,7 @@ export default function DashboardPage() {
         {/* Recent Activity */}
         <div className="glass-card" style={{ padding: 24 }}>
           <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Activity size={18} color="var(--text-muted)" /> Recent Activity
+            <Activity size={18} color="var(--text-muted)" /> {t('dashboard.recentActivity')}
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {[
@@ -94,7 +96,7 @@ export default function DashboardPage() {
         {/* Saved Locations */}
         <div className="glass-card" style={{ padding: 24 }}>
           <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Navigation size={18} color="var(--text-muted)" /> Saved Locations
+            <Navigation size={18} color="var(--text-muted)" /> {t('dashboard.savedLocations')}
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {['Chennai Coast (Home)', 'Fishing Zone Alpha (PFZ)', 'Safe Harbor Beta'].map((loc, i) => (
@@ -109,13 +111,13 @@ export default function DashboardPage() {
         {/* Recent Alerts */}
         <div className="glass-card" style={{ padding: 24, borderTop: '2px solid var(--status-caution)' }}>
           <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <ShieldAlert size={18} color="var(--status-caution)" /> Recent Alerts
+            <ShieldAlert size={18} color="var(--status-caution)" /> {t('dashboard.recentAlerts')}
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {loading ? (
-              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Loading alerts...</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('dashboard.loadingAlerts')}</div>
             ) : alerts.length === 0 ? (
-              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>No active alerts in Chennai region.</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('dashboard.noAlerts')}</div>
             ) : (
               alerts.slice(0, 3).map(alert => (
                 <div key={alert.id} style={{ padding: 12, borderRadius: 10, background: alert.severity === 'HIGH' ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)', border: `1px solid ${alert.severity === 'HIGH' ? 'rgba(239,68,68,0.2)' : 'rgba(245,158,11,0.2)'}` }}>

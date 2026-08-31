@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp, Clock, Shield } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { OrcaRecommendation, StatusLevel } from '../../types'
+import { useTranslation } from '../../locales'
 
 interface RecommendationCardProps {
   rec: OrcaRecommendation
@@ -14,10 +15,13 @@ const levelClass: Record<StatusLevel, string> = {
   NO_GO:   'nogo',
 }
 
-const levelLabel: Record<StatusLevel, string> = {
-  GO:      '✅ GO',
-  CAUTION: '⚠️ CAUTION',
-  NO_GO:   '🚫 NO-GO',
+const getLevelLabel = (level: StatusLevel, t: any): string => {
+  switch (level) {
+    case 'GO': return t('risk.goLabel')
+    case 'CAUTION': return t('risk.cautionLabel')
+    case 'NO_GO': return t('risk.noGoLabel')
+    default: return level
+  }
 }
 
 const confidenceColor: Record<string, string> = {
@@ -28,6 +32,7 @@ const confidenceColor: Record<string, string> = {
 
 export default function RecommendationCard({ rec }: RecommendationCardProps) {
   const [showEvidence, setShowEvidence] = useState(false)
+  const { t } = useTranslation()
   const cls = levelClass[rec.level]
 
   return (
@@ -38,13 +43,13 @@ export default function RecommendationCard({ rec }: RecommendationCardProps) {
           fontSize: 10.5, color: 'rgba(251,191,36,0.65)',
           marginBottom: 10, display: 'flex', alignItems: 'center', gap: 4
         }}>
-          ⚠ DEMO DATA — Not real marine intelligence
+          {t('risk.demoNotice')}
         </div>
       )}
 
       {/* Status badge */}
       <div className={`rec-status-badge ${cls}`}>
-        {levelLabel[rec.level]}
+        {getLevelLabel(rec.level, t)}
       </div>
 
       {/* Summary */}
@@ -61,10 +66,10 @@ export default function RecommendationCard({ rec }: RecommendationCardProps) {
         <div className="rec-return-time">
           <Clock size={14} style={{ color: 'rgba(126,200,227,0.7)', flexShrink: 0 }} />
           <div>
-            <span style={{ color: 'rgba(126,200,227,0.6)', fontSize: 11 }}>Depart: </span>
+            <span style={{ color: 'rgba(126,200,227,0.6)', fontSize: 11 }}>{t('risk.depart')} </span>
             <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>{rec.returnWindow.departureTime}</span>
             <span style={{ margin: '0 6px', color: 'rgba(255,255,255,0.2)' }}>·</span>
-            <span style={{ color: 'rgba(126,200,227,0.6)', fontSize: 11 }}>Return by: </span>
+            <span style={{ color: 'rgba(126,200,227,0.6)', fontSize: 11 }}>{t('risk.returnBy')} </span>
             <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>{rec.returnWindow.returnByTime}</span>
           </div>
         </div>
@@ -88,7 +93,7 @@ export default function RecommendationCard({ rec }: RecommendationCardProps) {
       {showEvidence && (
         <div style={{ marginBottom: 14 }}>
           <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'rgba(126,200,227,0.5)', marginBottom: 8 }}>
-            Reasoning
+            {t('risk.reasoning')}
           </div>
           {rec.reasoning.map((r, i) => (
             <div key={i} style={{ display: 'flex', gap: 8, fontSize: 13, color: 'rgba(184,223,240,0.8)', marginBottom: 5 }}>
@@ -102,26 +107,26 @@ export default function RecommendationCard({ rec }: RecommendationCardProps) {
       {/* Data freshness */}
       <div className="data-freshness">
         <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'rgba(126,200,227,0.4)', marginBottom: 4 }}>
-          Data Freshness
+          {t('risk.dataFreshness')}
         </div>
         <div className="freshness-row">
-          <span className="freshness-label">Weather</span>
+          <span className="freshness-label">{t('data.weather')}</span>
           <span className="freshness-value">{rec.dataFreshness.weather}</span>
         </div>
         <div className="freshness-row">
-          <span className="freshness-label">Marine</span>
+          <span className="freshness-label">{t('data.marine')}</span>
           <span className="freshness-value">{rec.dataFreshness.marine}</span>
         </div>
         <div className="freshness-row">
-          <span className="freshness-label">Satellite / PFZ</span>
+          <span className="freshness-label">{t('data.satellite')}</span>
           <span className="freshness-value">{rec.dataFreshness.satellite}</span>
         </div>
         <div className="freshness-row" style={{ marginTop: 4 }}>
           <span className="freshness-label" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <Shield size={10} /> Confidence
+            <Shield size={10} /> {t('risk.confidence')}
           </span>
           <span style={{ fontWeight: 600, fontSize: 12, color: confidenceColor[rec.confidence] }}>
-            {rec.confidence}
+            {t(`risk.${rec.confidence.toLowerCase()}` as any) || rec.confidence}
           </span>
         </div>
       </div>
@@ -129,7 +134,7 @@ export default function RecommendationCard({ rec }: RecommendationCardProps) {
       {/* Evidence toggle */}
       <button className="evidence-btn" onClick={() => setShowEvidence(!showEvidence)}>
         {showEvidence ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-        {showEvidence ? 'Hide details' : 'View evidence & reasoning'}
+        {showEvidence ? t('risk.hideDetails') : t('risk.viewEvidence')}
       </button>
     </div>
   )

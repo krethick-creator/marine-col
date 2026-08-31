@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { CheckCircle, Loader, Circle } from 'lucide-react'
 import type { AgentTraceStep } from '../../types'
+import { useTranslation } from '../../locales'
 
 interface AgentTraceProps {
   steps: AgentTraceStep[]
@@ -22,6 +23,7 @@ const agentEmojis: Record<string, string> = {
 
 export default function AgentTrace({ steps, currentIndex }: AgentTraceProps) {
   const [visibleCount, setVisibleCount] = useState(0)
+  const { t } = useTranslation()
 
   useEffect(() => {
     // Animate steps appearing one by one
@@ -33,7 +35,7 @@ export default function AgentTrace({ steps, currentIndex }: AgentTraceProps) {
 
   return (
     <div className="agent-trace">
-      <div className="agent-trace-title">🔍 Analysing with ORCA Agents</div>
+      <div className="agent-trace-title">🔍 {t('chat.analysing')}</div>
       {steps.slice(0, visibleCount).map((step, idx) => {
         const status =
           idx < currentIndex ? 'done'
@@ -54,7 +56,7 @@ export default function AgentTrace({ steps, currentIndex }: AgentTraceProps) {
               <span>{step.agentName}</span>
               {status === 'active' && (
                 <span style={{ marginLeft: 'auto', fontSize: 11, color: 'rgba(126,200,227,0.5)' }}>
-                  working…
+                  {t('chat.working')}
                 </span>
               )}
               {status === 'done' && (

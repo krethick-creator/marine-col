@@ -2,6 +2,14 @@ import { create } from 'zustand'
 import type { ChatMessage, UserProfile, WeatherSnapshot, Alert } from '../types'
 import { mockWeather, mockAlerts } from '../services/mockProviders/mockData'
 
+// Helper to retrieve persisted language from localStorage
+const SUPPORTED_LANGUAGES = ['en', 'hi', 'ta', 'te', 'ml', 'mr', 'gu', 'kn', 'bn', 'or']
+const getInitialLanguage = (): string => {
+  const stored = localStorage.getItem('orca_language')
+  if (stored && SUPPORTED_LANGUAGES.includes(stored)) return stored
+  return 'en'
+}
+
 // Helper to retrieve initial location from localStorage
 const getInitialLocation = () => {
   const lat = localStorage.getItem('orca_lat')
@@ -30,6 +38,9 @@ interface AppStore {
   // User
   user: UserProfile
   setUser: (user: Partial<UserProfile>) => void
+
+  // Language
+  setLanguage: (lang: string) => void
 
   // Offline mode
   offlineMode: boolean
@@ -68,11 +79,16 @@ export const useAppStore = create<AppStore>((set, get) => ({
     role: 'FISHERMAN',
     locationName: initialLoc.locationName,
     location: initialLoc.location,
-    language: 'en',
+    language: getInitialLanguage(),
     offlineMode: false,
   },
   setUser: (partial) =>
     set((s) => ({ user: { ...s.user, ...partial } })),
+
+  setLanguage: (lang) => {
+    localStorage.setItem('orca_language', lang)
+    set((s) => ({ user: { ...s.user, language: lang } }))
+  },
 
   offlineMode: false,
   toggleOfflineMode: () =>
