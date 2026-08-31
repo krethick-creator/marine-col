@@ -3,11 +3,12 @@ import { Link } from 'react-router-dom'
 import { Bell, Globe, ChevronDown, Database, LogOut, Settings, User, LayoutDashboard, MapPin, HelpCircle, Check } from 'lucide-react'
 import { useAppStore } from '../../store'
 import { useAuthStore } from '../../store/authStore'
-import { LANGUAGE_OPTIONS } from '../../locales'
+import { LANGUAGE_OPTIONS, useTranslation } from '../../locales'
 
 export default function TopBar() {
   const { unreadAlertCount, clearAlertBadge, offlineMode, user, setLanguage } = useAppStore()
   const { user: authUser, logout } = useAuthStore()
+  const { t } = useTranslation()
   const [menuOpen, setMenuOpen] = useState(false)
   const [langOpen, setLangOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -38,7 +39,7 @@ export default function TopBar() {
       {/* Mock data notice (hidden, keeps layout spacing) */}
       <div className="mock-banner" style={{ flex: 1, background: 'transparent', border: 'none', padding: '0 0 0 4px', visibility: 'hidden' }}>
         <Database size={11} style={{ color: 'rgba(251,191,36,0.7)' }} />
-        <span>DEMO MODE</span>
+        <span>{t('topbar.demoMode')}</span>
       </div>
 
       {/* Live indicator */}
@@ -46,7 +47,7 @@ export default function TopBar() {
         <div className={`live-dot`}
           style={{ background: offlineMode ? 'var(--status-caution)' : 'var(--status-go)' }}
         />
-        {offlineMode ? 'Offline' : 'Live Data'}
+        {offlineMode ? t('topbar.offline') : t('topbar.liveData')}
       </div>
 
       {/* Alerts bell */}

@@ -7,7 +7,7 @@ import { getOceanProvider } from '../services/ocean';
 import { getAdvisoryProvider } from '../services/advisories';
 import { getGeospatialProvider } from '../services/geospatial';
 import { getSafeRoute } from './routeAgent';
-import { getTranslationProvider } from '../services/translation';
+// Translation is handled directly by Groq — no external translation provider needed.
 
 function parseLocationsFromQuery(query: string) {
   const q = query.toLowerCase();
@@ -674,13 +674,43 @@ export const synthesisAgent = async (state: typeof OrcaState.State) => {
 
   const locationName = state.contextData.location?.name || 'the requested location';
 
+  const targetLanguage = state.contextData.language || 'en';
+
+  // Language name map for the prompt — gives Groq a natural language name to target
+  const languageNames: Record<string, string> = {
+    en: 'English', hi: 'Hindi (हिन्दी)', ta: 'Tamil (தமிழ்)', te: 'Telugu (తెలుగు)',
+    ml: 'Malayalam (മലയാളം)', mr: 'Marathi (मराठी)', gu: 'Gujarati (ગુજરાતી)',
+    kn: 'Kannada (ಕನ್ನಡ)', bn: 'Bengali (বাংলা)', or: 'Odia (ଓଡ଼ିଆ)',
+  };
+  const languageName = languageNames[targetLanguage] || `language code "${targetLanguage}"`;
+
+  const languageInstruction = targetLanguage === 'en'
+    ? 'Write your entire response in English.'
+    : `LANGUAGE REQUIREMENT — THIS IS NON-NEGOTIABLE:
+You MUST write your ENTIRE response in ${languageName}.
+Every single word must be in ${languageName}.
+This includes:
+- The title and all headings
+- Every Markdown table header and every table cell label
+- All explanatory paragraphs
+- All recommendations and safety advice
+- All warnings and disclaimers
+- All evidence and reasoning bullet points
+- All summaries
+- Status descriptions
+Do NOT mix English words into the response.
+Do NOT leave any heading, label, or column name in English.
+Preserve all numbers, units, coordinates, and scientific values exactly as they appear in the context data.`;
+
   const prompt = `You are the ORCA Synthesis Agent. Provide a clear, professional, concise markdown response to a fisherman or marine operator.
 
-STRICT RULES:
+${languageInstruction}
+
+STRICT DATA RULES:
 1. Use ONLY the data provided in the Structured Context below. Do NOT hallucinate or invent values.
-2. NEVER use "-" as a placeholder. If a value is unavailable, write "Unavailable" or "No data available".
-3. NEVER use a "Units / Notes" column in tables — only use "Parameter" and "Value" columns.
-4. The value for each row must be the actual data value (e.g., "26.9 °C", "78%", "Unavailable").
+2. NEVER use "-" as a placeholder. If a value is unavailable, write the localized equivalent of "Unavailable".
+3. NEVER use a "Units / Notes" column in tables — only use two columns: the localized parameter name and its value.
+4. The value for each row must be the actual data value (e.g., "26.9 °C", "78%").
 5. Do NOT create empty rows or rows with only dashes.
 6. Do NOT override or modify the Risk Assessment level — it is deterministic.
 7. Use exact numbers from the context. Do not round or estimate differently.
@@ -694,45 +724,18 @@ ${structuredContext}
 
 User Query: "${state.query}"
 
-Provide a professional markdown response covering the relevant data and the risk recommendation.`;
+Provide a professional markdown response covering the relevant data and the risk recommendation.
+Remember: WRITE THE ENTIRE RESPONSE IN ${languageName.toUpperCase()}.`;
 
   const response = await groqModelRouter.invoke([new SystemMessage(prompt)], 'synthesis');
-  const finalEnglishResponse = response.response;
-  const targetLanguage = state.contextData.language || 'en';
+  const finalResponse = response.response;
 
-  let finalResponse = finalEnglishResponse;
-  let responseLanguage = 'en';
-  let translationFailed = false;
-
-  if (targetLanguage !== 'en') {
-    const translator = getTranslationProvider();
-    const result = await translator.translateText(finalEnglishResponse, targetLanguage);
-
-    if (result.status === 'PROVIDER_UNAVAILABLE' || result.status === 'NOT_CONFIGURED') {
-      // Fallback to Groq native generation
-      console.log(`[Synthesis Agent] Translation provider unavailable. Falling back to Groq native for language ${targetLanguage}`);
-      const fallbackPrompt = `Translate the following markdown response into the language with code '${targetLanguage}'. Preserve all markdown formatting, numbers, and technical terms where appropriate. Do NOT add any conversational filler, just translate the text.
-
-Original text:
-${finalEnglishResponse}`;
-      try {
-        const fallbackResponse = await groqModelRouter.invoke([new SystemMessage(fallbackPrompt)], 'synthesis');
-        finalResponse = fallbackResponse.response;
-        responseLanguage = targetLanguage;
-      } catch (err) {
-        console.error('[Synthesis Agent] Groq fallback translation failed:', err);
-        translationFailed = true;
-      }
-    } else {
-      finalResponse = result.translatedText;
-      responseLanguage = targetLanguage;
-    }
-  }
+  console.log(`[Synthesis Agent] Response language: ${targetLanguage}`);
 
   return {
     finalResponse: finalResponse,
-    responseLanguage: responseLanguage,
-    translationFailed: translationFailed,
+    responseLanguage: targetLanguage,
+    translationFailed: false,
     executedSteps: ['synthesisAgent']
   };
 };

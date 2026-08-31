@@ -1,4 +1,4 @@
-import type { TranslationKey } from './en'
+﻿import type { TranslationKey } from './en'
 type P = Partial<Record<TranslationKey, string>>
 
 const bn: P = {
@@ -52,5 +52,23 @@ const bn: P = {
   'location.search': 'অনুসন্ধান করুন', 'location.quickOptions': 'দ্রুত উপকূলীয় বিকল্প',
   'profile.settings': 'সেটিংস', 'profile.logout': 'লগ আউট',
   'lang.label': 'ভাষা', 'lang.select': 'ভাষা নির্বাচন করুন',
+  'evidence.windSpeed': 'বাতাসের গতি', 'evidence.waveHeight': 'তরঙ্গ উচ্চতা',
+  'evidence.seaState': 'সমুদ্রের অবস্থা', 'evidence.swellPeriod': 'সুয়েল পিরিয়ড',
+  'evidence.currentSpeed': 'স্রোতের গতি',
+  'data.justNow': 'এইমাত্র', 'data.mockData': 'ডেমো ডেটা',
+  'data.providerUnavailable': 'অনুপলব্ধ', 'data.notConfigured': 'কনফিগার করা হয়নি',
+  'risk.high': 'উচ্চ', 'risk.medium': 'মাঝারি', 'risk.low': 'কম',
+  'risk.go': 'যান', 'risk.caution': 'সতর্ক', 'risk.noGo': 'যাবেন না', 'risk.mockData': 'ডেমো ডেটা ব্যবহৃত হচ্ছে',
+  'seaState.slight': 'হালকা', 'seaState.calm': 'শান্ত', 'seaState.moderate': 'মাঝারি', 'seaState.rough': 'উত্তাল', 'seaState.veryrough': 'খুব উত্তাল', 'seaState.high': 'উচ্চ',
+  'risk.reasoning.allSafe': 'সমস্ত সুরক্ষা মানদণ্ড স্বাভাবিক সীমার মধ্যে রয়েছে।',
+  'risk.reasoning.highWavesPFZ': 'উচ্চ ঢেউয়ের অবস্থা। পরিচালনা করা বিপজ্জনক।',
+  'risk.reasoning.cycloneAdvisory': 'সক্রিয় ঘূর্ণিঝড় সতর্কবার্তা বিদ্যমান।',
+  'risk.reasoning.dangerousReturn': 'ফেরার পথ বিপজ্জনক।',
+  'risk.reasoning.boundaryProximity': 'আন্তর্জাতিক সীমান্তের নিকটবর্তী।',
+  'risk.reasoning.worseningAfternoon': 'বিকেলে আবহাওয়ার অবনতি ঘটবে।',
+  'risk.reasoning.missingWaveHeight': 'গুরুত্বপূর্ণ সামুদ্রিক নিরাপত্তা তথ্য অনুপলব্ধ।',
+  'risk.reasoning.dangerousWindWaves': 'বিপজ্জনক বাতাস বা ঢেউয়ের অবস্থা।',
+  'risk.reasoning.moderateWindWaves': 'মাঝারি বাতাস/ঢেউ, সতর্কতা অবলম্বন করুন।',
+  'risk.reasoning.noAlerts': 'কোনো সক্রিয় সতর্কতা নেই।',
 }
 export default bn

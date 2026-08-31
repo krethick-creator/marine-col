@@ -1,19 +1,13 @@
-import { env } from '../../config/env';
 import type { TranslationProvider } from './TranslationProvider';
 import { MockTranslationProvider } from './MockTranslationProvider';
-import { BhashiniTranslationProvider } from './BhashiniTranslationProvider';
 
+// Groq is now the sole multilingual generation engine.
+// This module exists only to provide a mock provider for automated tests.
 let instance: TranslationProvider | null = null;
 
 export function getTranslationProvider(): TranslationProvider {
   if (!instance) {
-    if (env.useMockData) {
-      instance = new MockTranslationProvider();
-      console.log('[Translation] Using MockTranslationProvider (DEMO DATA)');
-    } else {
-      instance = new BhashiniTranslationProvider();
-      console.log('[Translation] Using BhashiniTranslationProvider (REAL DATA)');
-    }
+    instance = new MockTranslationProvider();
   }
   return instance;
 }

@@ -1,4 +1,4 @@
-import type { TranslationKey } from './en'
+﻿import type { TranslationKey } from './en'
 type P = Partial<Record<TranslationKey, string>>
 
 const hi: P = {
@@ -55,5 +55,23 @@ const hi: P = {
   'profile.settings': 'सेटिंग्स', 'profile.savedTrips': 'सहेजी गई यात्राएं', 'profile.dashboard': 'डैशबोर्ड',
   'profile.help': 'सहायता', 'profile.logout': 'लॉग आउट', 'profile.guest': 'अतिथि',
   'lang.label': 'भाषा', 'lang.select': 'भाषा चुनें', 'lang.header': 'Language / भाषा',
+  'evidence.windSpeed': 'हवा की गति', 'evidence.waveHeight': 'लहर की ऊंचाई',
+  'evidence.seaState': 'समुद्र की स्थिति', 'evidence.swellPeriod': 'लहर अवधि',
+  'evidence.currentSpeed': 'धारा की गति',
+  'data.justNow': 'अभी', 'data.mockData': 'डेमो डेटा',
+  'data.providerUnavailable': 'अनुपलब्ध', 'data.notConfigured': 'कॉन्फ़िगर नहीं',
+  'risk.high': 'उच्च', 'risk.medium': 'मध्यम', 'risk.low': 'कम',
+  'risk.go': 'जाएं', 'risk.caution': 'सावधान', 'risk.noGo': 'न जाएं', 'risk.mockData': 'डेमो डेटा उपयोग में',
+  'seaState.slight': 'कम/हल्की', 'seaState.calm': 'शांत', 'seaState.moderate': 'मध्यम', 'seaState.rough': 'अशांत', 'seaState.veryrough': 'अत्यंत अशांत', 'seaState.high': 'उच्च',
+  'risk.reasoning.allSafe': 'सभी सुरक्षा मानदंड सामान्य सीमा के भीतर हैं।',
+  'risk.reasoning.highWavesPFZ': 'लक्ष्य PFZ पर ऊंची लहरें हैं। अच्छी मछली संभावना के बावजूद असुरक्षित।',
+  'risk.reasoning.cycloneAdvisory': 'सक्रिय चक्रवात चेतावनी अच्छी PFZ स्थितियों पर भारी पड़ती है।',
+  'risk.reasoning.dangerousReturn': 'वापसी की स्थिति खतरनाक है। क्षेत्र की सिफारिश नहीं की जाती।',
+  'risk.reasoning.boundaryProximity': 'अंतर्राष्ट्रीय सीमा से निकटता। सुरक्षित वैकल्पिक मार्ग की योजना बनाएं।',
+  'risk.reasoning.worseningAfternoon': 'दोपहर में मौसम बिगड़ेगा। जल्दी जाएं और स्थिति असुरक्षित होने से पहले लौटें।',
+  'risk.reasoning.missingWaveHeight': 'महत्वपूर्ण समुद्री सुरक्षा डेटा (लहर की ऊंचाई) अनुपलब्ध है।',
+  'risk.reasoning.dangerousWindWaves': 'खतरनाक पवन या लहर की स्थिति।',
+  'risk.reasoning.moderateWindWaves': 'मध्यम हवा/लहरें, सावधानी बरतें।',
+  'risk.reasoning.noAlerts': 'इस स्थान के लिए कोई सक्रिय समुद्री चेतावनी नहीं मिली।',
 }
 export default hi

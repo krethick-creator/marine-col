@@ -1,4 +1,4 @@
-const en = {
+﻿const en = {
   // Navigation
   'nav.home': 'Home',
   'nav.liveMap': 'Live Map',
@@ -173,6 +173,19 @@ const en = {
   'lang.label': 'Language',
   'lang.select': 'Select Language',
   'lang.header': 'Language / भाषा',
+
+  // Evidence labels (used in RecommendationCard via Home/index.tsx)
+  'evidence.windSpeed': 'Wind Speed',
+  'evidence.waveHeight': 'Wave Height',
+  'evidence.seaState': 'Sea State',
+  'evidence.swellPeriod': 'Swell Period',
+  'evidence.currentSpeed': 'Current Speed',
+
+  // Extended data status labels
+  'data.justNow': 'Just now',
+  'data.mockData': 'Demo Data',
+  'data.providerUnavailable': 'Unavailable',
+  'data.notConfigured': 'Not configured',
 } as const
 
 export type TranslationKey = keyof typeof en

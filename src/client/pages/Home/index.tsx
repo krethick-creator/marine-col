@@ -44,6 +44,24 @@ export default function HomePage() {
 
   const { user } = useAppStore() // Assuming this is where location is stored
 
+  const translateSeaState = (seaState: string | undefined): string => {
+    if (!seaState) return t('data.unknown')
+    const key = `seaState.${seaState.toLowerCase().replace(/\s+/g, '')}` as any
+    const translated = t(key)
+    return translated !== key ? translated : seaState
+  }
+
+  // ─── Map provider status codes to localized display strings ───────
+  const translateProviderStatus = (status: string | undefined): string => {
+    if (!status) return t('data.unknown')
+    if (status === 'REAL_DATA_SUCCESS') return t('data.justNow')
+    if (status === 'MOCK_DATA') return t('data.mockData')
+    if (status === 'PROVIDER_UNAVAILABLE') return t('data.providerUnavailable')
+    if (status === 'NOT_CONFIGURED') return t('data.notConfigured')
+    if (status === 'REAL_DATA_EMPTY') return t('data.noData')
+    return status
+  }
+
   // --- Real agent processing ---
   const simulateAgents = useCallback(async (query: string) => {
     // 1. Initial UI setup (trace placeholder)
@@ -63,9 +81,9 @@ export default function HomePage() {
     addMessage({
       id: traceId,
       role: 'assistant',
-      content: '__AGENT_TRACE__',
+      content: '', // Pending until synthesis finishes
       timestamp: new Date(),
-      agentTrace: steps,
+      isMockData: false,
     })
 
     // 2. Map backend nodes to UI agent indices
@@ -116,16 +134,16 @@ export default function HomePage() {
             summary: riskAssessment.summary || '',
             reasoning: riskAssessment.reasoning || [],
             evidence: [
-              { label: 'Wind Speed', value: riskAssessment.evidence?.windSpeed ? `${riskAssessment.evidence.windSpeed} km/h` : 'Unknown', icon: '💨' },
-              { label: 'Wave Height', value: riskAssessment.evidence?.waveHeight !== null && riskAssessment.evidence?.waveHeight !== undefined ? `${riskAssessment.evidence.waveHeight} m` : 'Unavailable', icon: '🌊' },
-              ...(riskAssessment.evidence?.seaState ? [{ label: 'Sea State', value: riskAssessment.evidence.seaState, icon: '⛵' }] : []),
-              ...(riskAssessment.evidence?.swellPeriod ? [{ label: 'Swell Period', value: `${riskAssessment.evidence.swellPeriod} s`, icon: '⏱️' }] : []),
-              ...(riskAssessment.evidence?.currentSpeed !== null && riskAssessment.evidence?.currentSpeed !== undefined ? [{ label: 'Current Speed', value: `${riskAssessment.evidence.currentSpeed} km/h`, icon: '🧭' }] : []),
+              { label: t('evidence.windSpeed'), value: riskAssessment.evidence?.windSpeed ? `${riskAssessment.evidence.windSpeed} km/h` : t('data.unknown'), icon: '💨' },
+              { label: t('evidence.waveHeight'), value: riskAssessment.evidence?.waveHeight !== null && riskAssessment.evidence?.waveHeight !== undefined ? `${riskAssessment.evidence.waveHeight} m` : t('data.unavailable'), icon: '🌊' },
+              ...(riskAssessment.evidence?.seaState ? [{ label: t('evidence.seaState'), value: translateSeaState(riskAssessment.evidence.seaState), icon: '⛵' }] : []),
+              ...(riskAssessment.evidence?.swellPeriod ? [{ label: t('evidence.swellPeriod'), value: `${riskAssessment.evidence.swellPeriod} s`, icon: '⏱️' }] : []),
+              ...(riskAssessment.evidence?.currentSpeed !== null && riskAssessment.evidence?.currentSpeed !== undefined ? [{ label: t('evidence.currentSpeed'), value: `${riskAssessment.evidence.currentSpeed} km/h`, icon: '🧭' }] : []),
             ],
             dataFreshness: {
-              weather: providerStatuses?.weather?.status === 'REAL_DATA_SUCCESS' ? 'Just now' : providerStatuses?.weather?.status ?? 'Unknown',
-              marine: providerStatuses?.ocean?.status === 'REAL_DATA_SUCCESS' ? 'Just now' : providerStatuses?.ocean?.status ?? 'Unknown',
-              satellite: providerStatuses?.satellite?.status === 'REAL_DATA_SUCCESS' ? 'Just now' : providerStatuses?.satellite?.status ?? 'Unknown',
+              weather: translateProviderStatus(providerStatuses?.weather?.status),
+              marine: translateProviderStatus(providerStatuses?.ocean?.status),
+              satellite: translateProviderStatus(providerStatuses?.satellite?.status),
               updatedAt: new Date()
             },
             isMockData: Object.values(providerStatuses || {}).some((p) => p.status === 'MOCK_DATA')

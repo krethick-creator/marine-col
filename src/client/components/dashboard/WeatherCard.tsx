@@ -17,11 +17,11 @@ export default function WeatherCard() {
         </div>
         {currentWeather?.isMockData ? (
           <div style={{ fontSize: 10, color: 'rgba(251,191,36,0.8)', padding: '2px 8px', borderRadius: 12, background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)' }}>
-            {t('weather.demoData')}
+            {t('data.demoData')}
           </div>
         ) : currentWeather ? (
           <div style={{ fontSize: 10, color: 'rgba(74,222,128,0.9)', padding: '2px 8px', borderRadius: 12, background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.3)' }}>
-            {t('weather.realTime')}
+            {t('data.realData')}
           </div>
         ) : null}
       </div>

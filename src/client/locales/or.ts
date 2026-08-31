@@ -1,4 +1,4 @@
-import type { TranslationKey } from './en'
+﻿import type { TranslationKey } from './en'
 type P = Partial<Record<TranslationKey, string>>
 
 const or_lang: P = {
@@ -52,5 +52,23 @@ const or_lang: P = {
   'location.search': 'ଖୋଜନ୍ତୁ', 'location.quickOptions': 'ଦ୍ରୁତ ବିକଳ୍ପ',
   'profile.settings': 'ସେଟିଂ', 'profile.logout': 'ଲଗ ଆଉଟ',
   'lang.label': 'ଭାଷା', 'lang.select': 'ଭାଷା ଚୟନ କରନ୍ତୁ',
+  'evidence.windSpeed': 'ପବନ ଗତି', 'evidence.waveHeight': 'ତରଙ୍ଗ ଉଚ୍ଚତା',
+  'evidence.seaState': 'ସମୁଦ୍ର ଅବସ୍ଥା', 'evidence.swellPeriod': 'ସ୍ୱେଲ ସମୟ',
+  'evidence.currentSpeed': 'ସ୍ରୋତ ଗତି',
+  'data.justNow': 'ଏବେ', 'data.mockData': 'ଡେମୋ ଡାଟା',
+  'data.providerUnavailable': 'ଅନୁପଲବ୍ଧ', 'data.notConfigured': 'ସଂରଚନା ହୋଇନାହିଁ',
+  'risk.high': 'ଉଚ୍ଚ', 'risk.medium': 'ମଧ୍ୟମ', 'risk.low': 'କମ୍',
+  'risk.go': 'ଯାଅ', 'risk.caution': 'ସାବଧାନ', 'risk.noGo': 'ଯାଅ ନାହିଁ', 'risk.mockData': 'ଡେମୋ ଡାଟା ବ୍ୟବହୃତ ହେଉଛି',
+  'seaState.slight': 'ହଲକା', 'seaState.calm': 'ଶାନ୍ତ', 'seaState.moderate': 'ମଧ୍ୟମ', 'seaState.rough': 'ଅଶାନ୍ତ', 'seaState.veryrough': 'ଅତ୍ୟନ୍ତ ଅଶାନ୍ତ', 'seaState.high': 'ଉଚ୍ଚ',
+  'risk.reasoning.allSafe': 'ସମସ୍ତ ସୁରକ୍ଷା ମାପଦଣ୍ଡ ସାଧାରଣ ସୀମା ମଧ୍ୟରେ ଅଛି |',
+  'risk.reasoning.highWavesPFZ': 'ଲକ୍ଷ୍ୟ PFZ ରେ ଉଚ୍ଚ ଲହଡ଼ି |',
+  'risk.reasoning.cycloneAdvisory': 'ସକ୍ରିୟ ବାତ୍ୟା ସତର୍କତା ଜାରି ରହିଛି |',
+  'risk.reasoning.dangerousReturn': 'ଫେରିବା ଯାତ୍ରା ସ୍ଥିତି ବିପଜ୍ଜନକ |',
+  'risk.reasoning.boundaryProximity': 'ଅନ୍ତର୍ଜାତୀୟ ସୀମା ନିକଟତର |',
+  'risk.reasoning.worseningAfternoon': 'ଅପରାହ୍ନରେ ପାଣିପାଗ ଖରାପ ହେବ |',
+  'risk.reasoning.missingWaveHeight': 'ଗୁରୁତ୍ୱପୂର୍ଣ୍ଣ ସାମୁଦ୍ରିକ ସୁରକ୍ଷା ତଥ୍ୟ ଅନୁପଲବ୍ଧ |',
+  'risk.reasoning.dangerousWindWaves': 'ବିପଜ୍ଜନକ ପବନ କିମ୍ବା ଲହଡ଼ି ସ୍ଥିତି |',
+  'risk.reasoning.moderateWindWaves': 'ମଧ୍ୟମ ପବନ/ଲହଡ଼ି, ସାବଧାନତା ଅବଲମ୍ବନ କରନ୍ତୁ |',
+  'risk.reasoning.noAlerts': 'କୌଣସି ସକ୍ରିୟ ସତର୍କତା ନାହିଁ |',
 }
 export default or_lang

@@ -1,4 +1,4 @@
-import type { TranslationKey } from './en'
+﻿import type { TranslationKey } from './en'
 type P = Partial<Record<TranslationKey, string>>
 
 const gu: P = {
@@ -52,5 +52,23 @@ const gu: P = {
   'location.search': 'શોધો', 'location.quickOptions': 'ઝડપી દરિયાકાંઠાના વિકલ્પો',
   'profile.settings': 'સેટિંગ્સ', 'profile.logout': 'લૉગ આઉટ',
   'lang.label': 'ભાષા', 'lang.select': 'ભાષા પસંદ કરો',
+  'evidence.windSpeed': 'પવનની ઝડપ', 'evidence.waveHeight': 'તરંગ ઊંચાઈ',
+  'evidence.seaState': 'દરિયાની સ્થિતિ', 'evidence.swellPeriod': 'સ્વેલ સમયગાળો',
+  'evidence.currentSpeed': 'પ્રવાહ ઝડપ',
+  'data.justNow': 'હમણાં', 'data.mockData': 'ડેમો ડેટા',
+  'data.providerUnavailable': 'અનુપલબ્ધ', 'data.notConfigured': 'ગોઠવ્યું નથી',
+  'risk.high': 'ઊંચું', 'risk.medium': 'મધ્યમ', 'risk.low': 'ઓછું',
+  'risk.go': 'જઈ શકો', 'risk.caution': 'સાવધાન', 'risk.noGo': 'ન જઈ શકો', 'risk.mockData': 'ડેમો ડેટા વાપરવામાં આવે છે',
+  'seaState.slight': 'હળવું', 'seaState.calm': 'શાંત', 'seaState.moderate': 'મધ્યમ', 'seaState.rough': 'ઉછળતું', 'seaState.veryrough': 'ખૂબ ઉછળતું', 'seaState.high': 'ઊંચું',
+  'risk.reasoning.allSafe': 'તમામ સુરક્ષા પરિમાણો સામાન્ય મર્યાદામાં છે.',
+  'risk.reasoning.highWavesPFZ': 'લક્ષ્ય PFZ પર ઊંચા મોજાઓ છે.',
+  'risk.reasoning.cycloneAdvisory': 'વાવાઝોડાની ચેતવણી સક્રિય છે.',
+  'risk.reasoning.dangerousReturn': 'પાછા ફરવાની પરિસ્થિતિ જોખમી છે.',
+  'risk.reasoning.boundaryProximity': 'આંતરરાષ્ટ્રીય સરહદની નજીક છે.',
+  'risk.reasoning.worseningAfternoon': 'બપોરે હવામાન બગડશે.',
+  'risk.reasoning.missingWaveHeight': 'મહત્વપૂર્ણ દરિયાઈ સુરક્ષા ડેટા અનુપલબ્ધ છે.',
+  'risk.reasoning.dangerousWindWaves': 'જોખમી પવન અથવા મોજાની પરિસ્થિતિ.',
+  'risk.reasoning.moderateWindWaves': 'મધ્યમ પવન/મોજા, સાવચેતી રાખો.',
+  'risk.reasoning.noAlerts': 'કોઈ સક્રિય ચેતવણી નથી.',
 }
 export default gu

@@ -1,4 +1,4 @@
-import type { TranslationKey } from './en'
+﻿import type { TranslationKey } from './en'
 type P = Partial<Record<TranslationKey, string>>
 
 const ml: P = {
@@ -52,5 +52,23 @@ const ml: P = {
   'location.search': 'തിരയുക', 'location.quickOptions': 'ദ്രുത തീരദേശ ഓപ്ഷനുകൾ',
   'profile.settings': 'ക്രമീകരണങ്ങൾ', 'profile.logout': 'ലോഗ് ഔട്ട്',
   'lang.label': 'ഭാഷ', 'lang.select': 'ഭാഷ തിരഞ്ഞെടുക്കുക',
+  'evidence.windSpeed': 'കാറ്റ് വേഗത', 'evidence.waveHeight': 'തിരമാല ഉയരം',
+  'evidence.seaState': 'സമുദ്ര അവസ്ഥ', 'evidence.swellPeriod': 'സ്വെൽ കാലാവധി',
+  'evidence.currentSpeed': 'സ്രോതസ്സ് വേഗത',
+  'data.justNow': 'ഇപ്പോൾ', 'data.mockData': 'ഡെമോ ഡാറ്റ',
+  'data.providerUnavailable': 'ലഭ്യമല്ല', 'data.notConfigured': 'ക്രമീകരിച്ചിട്ടില്ല',
+  'risk.high': 'ഉയർന്നത്', 'risk.medium': 'ഇടത്തരം', 'risk.low': 'താഴ്ന്നത്',
+  'risk.go': 'പോകാം', 'risk.caution': 'ജാഗ്രത', 'risk.noGo': 'പോകരുത്', 'risk.mockData': 'ഡെമോ ഡാറ്റ ഉപയോഗത്തിലാണ്',
+  'seaState.slight': 'ചെറിയത്', 'seaState.calm': 'ശാന്തം', 'seaState.moderate': 'ഇടത്തരം', 'seaState.rough': 'ക്ഷോഭിച്ച', 'seaState.veryrough': 'അതിക്ഷോഭിച്ച', 'seaState.high': 'ഉയർന്നത്',
+  'risk.reasoning.allSafe': 'എല്ലാ സുരക്ഷാ പാരാമീറ്ററുകളും സാധാരണ പരിധിക്കുള്ളിലാണ്.',
+  'risk.reasoning.highWavesPFZ': 'ലക്ഷ്യബോധമുള്ള PFZ-ൽ ഉയർന്ന തിരമാലകൾ. സുരക്ഷിതമല്ല.',
+  'risk.reasoning.cycloneAdvisory': 'സജീവ ചുഴലിക്കാറ്റ് മുന്നറിയിപ്പ് നിലനിൽക്കുന്നു.',
+  'risk.reasoning.dangerousReturn': 'മടക്കയാത്ര അപകടകരമാണ്.',
+  'risk.reasoning.boundaryProximity': 'അന്താരാഷ്ട്ര അതിർത്തിക്ക് സമീപം. സുരക്ഷിത ബദൽ വഴി ആസൂത്രണം ചെയ്യുക.',
+  'risk.reasoning.worseningAfternoon': 'ഉച്ചകഴിഞ്ഞ് കാലാവസ്ഥ മോശമാകും. നേരത്തെ പോയി മടങ്ങുക.',
+  'risk.reasoning.missingWaveHeight': 'പ്രധാന സമുദ്ര സുരക്ഷാ വിവരങ്ങൾ ലഭ്യമല്ല.',
+  'risk.reasoning.dangerousWindWaves': 'അപകടകരമായ കാറ്റും തിരമാലയും.',
+  'risk.reasoning.moderateWindWaves': 'ഇടത്തരം കാറ്റ്/തിരമാലകൾ, ജാഗ്രത പാലിക്കുക.',
+  'risk.reasoning.noAlerts': 'സജീവ മുന്നറിയിപ്പുകളൊന്നുമില്ല.',
 }
 export default ml

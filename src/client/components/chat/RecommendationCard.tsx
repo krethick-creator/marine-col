@@ -30,6 +30,20 @@ const confidenceColor: Record<string, string> = {
   LOW:    '#f87171',
 }
 
+const translateReasoningItem = (item: string, t: any): string => {
+  if (item === 'All safety parameters are within normal limits.') return t('risk.reasoning.allSafe') || item;
+  if (item.includes('High wave conditions at target PFZ')) return t('risk.reasoning.highWavesPFZ') || item;
+  if (item.includes('Active cyclone advisory')) return t('risk.reasoning.cycloneAdvisory') || item;
+  if (item.includes('Return trip conditions are dangerous')) return t('risk.reasoning.dangerousReturn') || item;
+  if (item.includes('Proximity to international boundary')) return t('risk.reasoning.boundaryProximity') || item;
+  if (item.includes('Weather will worsen in the afternoon')) return t('risk.reasoning.worseningAfternoon') || item;
+  if (item.includes('Critical marine safety data')) return t('risk.reasoning.missingWaveHeight') || item;
+  if (item.includes('Dangerous general wind or wave conditions')) return t('risk.reasoning.dangerousWindWaves') || item;
+  if (item.includes('Moderate wind/waves')) return t('risk.reasoning.moderateWindWaves') || item;
+  if (item.includes('No active marine alerts')) return t('risk.reasoning.noAlerts') || item;
+  return item;
+};
+
 export default function RecommendationCard({ rec }: RecommendationCardProps) {
   const [showEvidence, setShowEvidence] = useState(false)
   const { t } = useTranslation()
@@ -98,7 +112,7 @@ export default function RecommendationCard({ rec }: RecommendationCardProps) {
           {rec.reasoning.map((r, i) => (
             <div key={i} style={{ display: 'flex', gap: 8, fontSize: 13, color: 'rgba(184,223,240,0.8)', marginBottom: 5 }}>
               <span style={{ color: 'rgba(126,200,227,0.5)', flexShrink: 0 }}>•</span>
-              {r}
+              {translateReasoningItem(r, t)}
             </div>
           ))}
         </div>

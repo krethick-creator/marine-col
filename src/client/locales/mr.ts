@@ -1,4 +1,4 @@
-import type { TranslationKey } from './en'
+﻿import type { TranslationKey } from './en'
 type P = Partial<Record<TranslationKey, string>>
 
 const mr: P = {
@@ -52,5 +52,23 @@ const mr: P = {
   'location.search': 'शोधा', 'location.quickOptions': 'त्वरित किनारी पर्याय',
   'profile.settings': 'सेटिंग्ज', 'profile.logout': 'लॉग आउट',
   'lang.label': 'भाषा', 'lang.select': 'भाषा निवडा',
+  'evidence.windSpeed': 'वाऱ्याचा वेग', 'evidence.waveHeight': 'लहरींची उंची',
+  'evidence.seaState': 'समुद्राची स्थिती', 'evidence.swellPeriod': 'लाट कालावधी',
+  'evidence.currentSpeed': 'प्रवाहाचा वेग',
+  'data.justNow': 'आत्ता', 'data.mockData': 'डेमो डेटा',
+  'data.providerUnavailable': 'अनुपलब्ध', 'data.notConfigured': 'कॉन्फिगर केलेले नाही',
+  'risk.high': 'उच्च', 'risk.medium': 'मध्यम', 'risk.low': 'कमी',
+  'risk.go': 'जा', 'risk.caution': 'सावधान', 'risk.noGo': 'जाऊ नका', 'risk.mockData': 'डेमो डेटा वापरत आहे',
+  'seaState.slight': 'सौम्य', 'seaState.calm': 'शांत', 'seaState.moderate': 'मध्यम', 'seaState.rough': 'खवळलेला', 'seaState.veryrough': 'अत्यंत खवळलेला', 'seaState.high': 'उंच',
+  'risk.reasoning.allSafe': 'सर्व सुरक्षा निकष सामान्य मर्यादेत आहेत.',
+  'risk.reasoning.highWavesPFZ': 'लक्ष्य PFZ वर उंच लाटा आहेत.',
+  'risk.reasoning.cycloneAdvisory': 'सक्रिय चक्रीवादळ इशारा लागू आहे.',
+  'risk.reasoning.dangerousReturn': 'परतीचा प्रवास धोकादायक आहे.',
+  'risk.reasoning.boundaryProximity': 'आंतरराष्ट्रीय सीमेच्या जवळ आहे.',
+  'risk.reasoning.worseningAfternoon': 'दुपारी हवामान खराब होईल.',
+  'risk.reasoning.missingWaveHeight': 'महत्त्वाची सागरी सुरक्षा माहिती उपलब्ध नाही.',
+  'risk.reasoning.dangerousWindWaves': 'धोकादायक वारा किंवा लाटांची स्थिती.',
+  'risk.reasoning.moderateWindWaves': 'मध्यम वारा/लाटा, काळजी घ्या.',
+  'risk.reasoning.noAlerts': 'कोणताही सक्रिय इशारा नाही.',
 }
 export default mr

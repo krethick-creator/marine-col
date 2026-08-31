@@ -59,6 +59,9 @@ export default function App() {
   const checkAuth = useAuthStore(state => state.clearError); // Fix infinite loop
   const user = useAppStore(state => state.user);
   const fetchWeather = useAppStore(state => state.fetchWeather);
+  const showLocationModal = useAppStore(state => state.showLocationModal);
+  const setLocation = useAppStore(state => state.setLocation);
+  const setShowLocationModal = useAppStore(state => state.setShowLocationModal);
 
   useEffect(() => {
     checkAuth();
@@ -83,7 +86,13 @@ export default function App() {
       <OceanBackground />
 
       {/* Global Location Prompt Modal */}
-      <LocationPromptModal />
+      {showLocationModal && (
+        <LocationPromptModal
+          onSelectLocation={(coords, name) => setLocation(coords.lat, coords.lon, name)}
+          onClose={() => setShowLocationModal(false)}
+          isDismissible={!!user?.location}
+        />
+      )}
 
       <Routes>
         {/* Root Redirect */}

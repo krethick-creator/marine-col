@@ -1,4 +1,4 @@
-import type { TranslationKey } from './en'
+﻿import type { TranslationKey } from './en'
 type P = Partial<Record<TranslationKey, string>>
 
 const ta: P = {
@@ -55,5 +55,23 @@ const ta: P = {
   'location.search': 'தேடு', 'location.quickOptions': 'விரைவு கடலோர விருப்பங்கள்',
   'profile.settings': 'அமைப்புகள்', 'profile.help': 'உதவி', 'profile.logout': 'வெளியேறு', 'profile.guest': 'விருந்தினர்',
   'lang.label': 'மொழி', 'lang.select': 'மொழி தேர்ந்தெடுக்கவும்',
+  'evidence.windSpeed': 'காற்று வேகம்', 'evidence.waveHeight': 'அலை உயரம்',
+  'evidence.seaState': 'கடல் நிலை', 'evidence.swellPeriod': 'ஸ்வெல் காலம்',
+  'evidence.currentSpeed': 'நீரோட்ட வேகம்',
+  'data.justNow': 'இப்போது', 'data.mockData': 'டெமோ தரவு',
+  'data.providerUnavailable': 'கிடைக்கவில்லை', 'data.notConfigured': 'அமைக்கப்படவில்லை',
+  'risk.high': 'அதிகம்', 'risk.medium': 'நடுத்தரம்', 'risk.low': 'குறைவு',
+  'risk.go': 'செல்லலாம்', 'risk.caution': 'எச்சரிக்கை', 'risk.noGo': 'செல்ல வேண்டாம்', 'risk.mockData': 'டெமோ தரவு பயன்படுத்தப்படுகிறது',
+  'seaState.slight': 'மிதமான', 'seaState.calm': 'அமைதியான', 'seaState.moderate': 'நடுத்தர', 'seaState.rough': 'கொந்தளிப்பான', 'seaState.veryrough': 'மிகுந்த கொந்தளிப்பு', 'seaState.high': 'உயர்ந்த',
+  'risk.reasoning.allSafe': 'அனைத்து பாதுகாப்பு அளவுகளும் சாதாரண வரம்பிற்குள் உள்ளன.',
+  'risk.reasoning.highWavesPFZ': 'இலக்கு PFZ மண்டலத்தில் உயர்ந்த அலைகள். பாதுகாப்பு இல்லை.',
+  'risk.reasoning.cycloneAdvisory': 'செயலில் உள்ள புயல் எச்சரிக்கை PFZ நிலைகளை விட முக்கியமானது.',
+  'risk.reasoning.dangerousReturn': 'திரும்பும் பயணம் ஆபத்தானது. இந்த மண்டலம் பரிந்துரைக்கப்படவில்லை.',
+  'risk.reasoning.boundaryProximity': 'சர்வதேச எல்லைக்கு அருகில். பாதுகாப்பான மாற்று பாதையை திட்டமிடுங்கள்.',
+  'risk.reasoning.worseningAfternoon': 'பிற்பகலில் வானிலை மோசமடையும். சீக்கிரம் சென்று பாதுகாப்பாக திரும்புங்கள்.',
+  'risk.reasoning.missingWaveHeight': 'முக்கிய கடல் பாதுகாப்பு தரவு (அலை உயரம்) கிடைக்கவில்லை.',
+  'risk.reasoning.dangerousWindWaves': 'ஆபத்தான காற்று அல்லது அலை நிலைகள்.',
+  'risk.reasoning.moderateWindWaves': 'மிதமான காற்று/அலைகள், எச்சரிக்கையுடன் செயல்படவும்.',
+  'risk.reasoning.noAlerts': 'இந்த இடத்திற்கு செயலில் உள்ள கடல் எச்சரிக்கைகள் எதுவுமில்லை.',
 }
 export default ta

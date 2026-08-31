@@ -1,4 +1,4 @@
-import type { TranslationKey } from './en'
+﻿import type { TranslationKey } from './en'
 type P = Partial<Record<TranslationKey, string>>
 
 const te: P = {
@@ -53,5 +53,23 @@ const te: P = {
   'location.search': 'వెతుకు', 'location.quickOptions': 'శీఘ్ర తీర ఎంపికలు',
   'profile.settings': 'సెట్టింగ్‌లు', 'profile.logout': 'లాగ్ అవుట్',
   'lang.label': 'భాష', 'lang.select': 'భాష ఎంచుకోండి',
+  'evidence.windSpeed': 'గాలి వేగం', 'evidence.waveHeight': 'తరంగ ఎత్తు',
+  'evidence.seaState': 'సముద్ర స్థితి', 'evidence.swellPeriod': 'వేల్ కాలం',
+  'evidence.currentSpeed': 'స్రవంతి వేగం',
+  'data.justNow': 'ఇప్పుడే', 'data.mockData': 'డెమో డేటా',
+  'data.providerUnavailable': 'అందుబాటులో లేదు', 'data.notConfigured': 'కాన్ఫిగర్ చేయబడలేదు',
+  'risk.high': 'అధికం', 'risk.medium': 'మధ్యస్థం', 'risk.low': 'తక్కువ',
+  'risk.go': 'వెళ్ళవచ్చు', 'risk.caution': 'జాగ్రత్త', 'risk.noGo': 'వెళ్ళకండి', 'risk.mockData': 'డెమో డేటా ఉపయోగిస్తోంది',
+  'seaState.slight': 'తక్కువ', 'seaState.calm': 'శాంతం', 'seaState.moderate': 'మధ్యస్థం', 'seaState.rough': 'అశాంతం', 'seaState.veryrough': 'అత్యంత అశాంతం', 'seaState.high': 'అధికం',
+  'risk.reasoning.allSafe': 'అన్ని రక్షణ పారామితులు సాధారణ పరిధిలోనే ఉన్నాయి.',
+  'risk.reasoning.highWavesPFZ': 'లక్ష్యంగా ఉన్న PFZ వద్ద ఎక్కువ అలల ఎత్తు.',
+  'risk.reasoning.cycloneAdvisory': 'తుఫాను హెచ్చరిక అమలులో ఉంది.',
+  'risk.reasoning.dangerousReturn': 'తిరిగి ప్రయాణ పరిస్థితులు ప్రమాదకరంగా ఉన్నాయి.',
+  'risk.reasoning.boundaryProximity': 'అంతర్జాతీయ సరిహద్దు సమీపంలో ఉంది.',
+  'risk.reasoning.worseningAfternoon': 'మధ్యాహ్నం వాతావరణం క్షీణిస్తుంది.',
+  'risk.reasoning.missingWaveHeight': 'ముఖ్యమైన సముద్ర రక్షణ డేటా అందుబాటులో లేదు.',
+  'risk.reasoning.dangerousWindWaves': 'ప్రమాదకరమైన గాలి లేదా అలల పరిస్థితులు.',
+  'risk.reasoning.moderateWindWaves': 'మధ్యస్థ గాలి/అలలు, జాగ్రత్త వహించండి.',
+  'risk.reasoning.noAlerts': 'చురుకైన హెచ్చరికలు ఏవీ లేవు.',
 }
 export default te

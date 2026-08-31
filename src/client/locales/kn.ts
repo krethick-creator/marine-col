@@ -1,4 +1,4 @@
-import type { TranslationKey } from './en'
+﻿import type { TranslationKey } from './en'
 type P = Partial<Record<TranslationKey, string>>
 
 const kn: P = {
@@ -52,5 +52,23 @@ const kn: P = {
   'location.search': 'ಹುಡುಕಿ', 'location.quickOptions': 'ತ್ವರಿತ ಕರಾವಳಿ ಆಯ್ಕೆಗಳು',
   'profile.settings': 'ಸೆಟ್ಟಿಂಗ್‌ಗಳು', 'profile.logout': 'ಲಾಗ್ ಔಟ್',
   'lang.label': 'ಭಾಷೆ', 'lang.select': 'ಭಾಷೆ ಆಯ್ಕೆಮಾಡಿ',
+  'evidence.windSpeed': 'ಗಾಳಿ ವೇಗ', 'evidence.waveHeight': 'ಅಲೆಯ ಎತ್ತರ',
+  'evidence.seaState': 'ಸಮುದ್ರ ಸ್ಥಿತಿ', 'evidence.swellPeriod': 'ಸ್ವೆಲ್ ಅವಧಿ',
+  'evidence.currentSpeed': 'ಪ್ರವಾಹ ವೇಗ',
+  'data.justNow': 'ಈಗ', 'data.mockData': 'ಡೆಮೋ ಡೇಟಾ',
+  'data.providerUnavailable': 'ಲಭ್ಯವಿಲ್ಲ', 'data.notConfigured': 'ಕಾನ್ಫಿಗರ್ ಆಗಿಲ್ಲ',
+  'risk.high': 'ಹೆಚ್ಚು', 'risk.medium': 'ಮಧ್ಯಮ', 'risk.low': 'ಕಡಿಮೆ',
+  'risk.go': 'ಹೋಗಬಹುದು', 'risk.caution': 'ಎಚ್ಚರಿಕೆ', 'risk.noGo': 'ಹೋಗಬೇಡಿ', 'risk.mockData': 'ಡೆಮೋ ಡೇಟಾ ಬಳಸಲಾಗುತ್ತಿದೆ',
+  'seaState.slight': 'ಕಡಿಮೆ', 'seaState.calm': 'ಶಾಂತ', 'seaState.moderate': 'ಮಧ್ಯಮ', 'seaState.rough': 'ಅಶಾಂತ', 'seaState.veryrough': 'ಅತ್ಯಂತ ಅಶಾಂತ', 'seaState.high': 'ಹೆಚ್ಚು',
+  'risk.reasoning.allSafe': 'ಎಲ್ಲಾ ಸುರಕ್ಷತಾ ಮಾನದಂಡಗಳು ಸಾಮಾನ್ಯ ಮಿತಿಯಲ್ಲಿವೆ.',
+  'risk.reasoning.highWavesPFZ': 'ಉದ್ದೇಶಿತ PFZ ನಲ್ಲಿ ಹೆಚ್ಚಿನ ಅಲೆಗಳು.',
+  'risk.reasoning.cycloneAdvisory': 'ಸಕ್ರಿಯ ಸೈಕ್ಲೋನ್ ಎಚ್ಚರಿಕೆ ಚಾಲ್ತಿಯಲ್ಲಿದೆ.',
+  'risk.reasoning.dangerousReturn': 'ಹಿಂತಿರುಗುವ ಪ್ರಯಾಣವು ಅಪಾಯಕಾರಿ.',
+  'risk.reasoning.boundaryProximity': 'ಅಂತರರಾಷ್ಟ್ರೀಯ ಗಡಿಯ ಸಮೀಪದಲ್ಲಿದೆ.',
+  'risk.reasoning.worseningAfternoon': 'ಮಧ್ಯಾಹ್ನ ಹವಾಮಾನ ಹದಗೆಡುತ್ತದೆ.',
+  'risk.reasoning.missingWaveHeight': 'ಪ್ರಮುಖ ಕಡಲ ಸುರಕ್ಷತಾ ಡೇಟಾ ಲಭ್ಯವಿಲ್ಲ.',
+  'risk.reasoning.dangerousWindWaves': 'ಅಪಾಯಕಾರಿ ಗಾಳಿ ಅಥವಾ ಅಲೆಯ ಪರಿಸ್ಥಿತಿಗಳು.',
+  'risk.reasoning.moderateWindWaves': 'ಮಧ್ಯಮ ಗಾಳಿ/ಅಲೆಗಳು, ಎಚ್ಚರಿಕೆ ವಹಿಸಿ.',
+  'risk.reasoning.noAlerts': 'ಸಕ್ರಿಯ ಎಚ್ಚರಿಕೆಗಳು ಲಭ್ಯವಿಲ್ಲ.',
 }
 export default kn
