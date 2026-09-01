@@ -1,44 +1,26 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import {
   Home, Map, Calendar, Cloud, Fish, AlertTriangle,
-  Flag, Users, LifeBuoy, Settings,
+  Flag, Users, LifeBuoy, Wifi, WifiOff, Settings,
   Compass, BarChart2, MapPin
 } from 'lucide-react'
 import OrcaLogo from '../ui/OrcaLogo'
 import { useAppStore } from '../../store'
 import { useAuthStore } from '../../store/authStore'
-import { roleConfigs } from '../../config/roleConfig'
-import type { UserRole } from '../../config/roleConfig'
-import { useTranslation } from '../../locales'
+import { useTranslation, type TranslationKey } from '../../locales'
 
-const allNavItems = [
-  { id: 'home', to: '/home', icon: Home, labelKey: 'nav.home', end: true },
-  { id: 'research_dashboard', to: '/home', icon: Home, labelKey: 'dashboard.title', end: true },
-  { id: 'operations_dashboard', to: '/home', icon: Home, labelKey: 'dashboard.title', end: true },
-  { id: 'live_marine_map', to: '/map', icon: Map, labelKey: 'nav.liveMap' },
-  { id: 'marine_map', to: '/map', icon: Map, labelKey: 'nav.liveMap' },
-  { id: 'gis_map', to: '/map', icon: Map, labelKey: 'nav.liveMap' },
-  { id: 'weather', to: '/weather', icon: Cloud, labelKey: 'nav.weather' },
-  { id: 'ocean', to: '/weather', icon: Cloud, labelKey: 'nav.weather' },
-  { id: 'sea_conditions', to: '/weather', icon: Cloud, labelKey: 'nav.weather' },
-  { id: 'fishing_intelligence', to: '/fishing', icon: Fish, labelKey: 'nav.fishing' },
-  { id: 'marine_boundaries', to: '/boundaries', icon: Flag, labelKey: 'nav.boundaries' },
-  { id: 'boundaries', to: '/boundaries', icon: Flag, labelKey: 'nav.boundaries' },
-  { id: 'navigation', to: '/map', icon: Compass, labelKey: 'nav.liveMap' },
-  { id: 'alerts', to: '/alerts', icon: AlertTriangle, labelKey: 'nav.alerts', badge: true },
-  { id: 'sos', to: '/sos', icon: LifeBuoy, labelKey: 'nav.sos' },
-  { id: 'sms', to: '/settings', icon: Settings, labelKey: 'nav.sos' },
-  { id: 'satellite_data', to: '/weather', icon: Cloud, labelKey: 'nav.weather' },
-  { id: 'ocean_data', to: '/weather', icon: Cloud, labelKey: 'nav.weather' },
-  { id: 'analysis', to: '/reports', icon: BarChart2, labelKey: 'nav.reports' },
-  { id: 'historical_climate', to: '/climate', icon: Compass, labelKey: 'nav.climate' },
-  { id: 'reports', to: '/reports', icon: BarChart2, labelKey: 'nav.reports' },
-  { id: 'ai_research_assistant', to: '/home', icon: Users, labelKey: 'nav.home' },
-  { id: 'incidents', to: '/community', icon: AlertTriangle, labelKey: 'nav.community' },
-  { id: 'disaster_monitoring', to: '/alerts', icon: AlertTriangle, labelKey: 'nav.alerts' },
-  { id: 'learn', to: '/community', icon: Users, labelKey: 'nav.community' },
-  { id: 'orca_ai', to: '/home', icon: Users, labelKey: 'nav.home' },
-  { id: 'community', to: '/community', icon: Users, labelKey: 'nav.community' },
+const navItems: { to: string; icon: any; key: TranslationKey; badge?: boolean; end?: boolean }[] = [
+  { to: '/home',      icon: Home,          key: 'nav.home',        end: true },
+  { to: '/map',       icon: Map,           key: 'nav.liveMap' },
+  { to: '/planner',   icon: Calendar,      key: 'nav.tripPlanner' },
+  { to: '/weather',   icon: Cloud,         key: 'nav.weather' },
+  { to: '/climate',   icon: Compass,       key: 'nav.climate' },
+  { to: '/reports',   icon: BarChart2,     key: 'nav.reports' },
+  { to: '/fishing',   icon: Fish,          key: 'nav.fishing' },
+  { to: '/alerts',    icon: AlertTriangle, key: 'nav.alerts',      badge: true },
+  { to: '/boundaries',icon: Flag,          key: 'nav.boundaries' },
+  { to: '/community', icon: Users,         key: 'nav.community' },
+  { to: '/sos',       icon: LifeBuoy,      key: 'nav.sos' },
 ]
 
 export default function Sidebar() {
@@ -47,47 +29,54 @@ export default function Sidebar() {
   const location = useLocation()
   const { t } = useTranslation()
 
-  const normalizedRole = String((user?.role || appUser?.role || 'general')).toLowerCase().replace(/\s+/g, '_') as UserRole
-  const config = roleConfigs[normalizedRole] || roleConfigs.general
-  const navItems = allNavItems.filter(item => config.features.includes(item.id)).map(item => ({ ...item, label: t(item.labelKey as any) }))
-
   return (
     <aside className="sidebar">
+      {/* Logo */}
       <div className="sidebar-logo">
         <OrcaLogo size={34} />
         <div>
-          <div className="hero-title">ORCA</div>
+          <div className="hero-title">
+            ORCA
+          </div>
           <div style={{ fontSize: 11, color: 'var(--text-light)', fontWeight: 500, letterSpacing: '0.02em', marginTop: 2 }}>
             {t('sidebar.tagline')}
           </div>
         </div>
       </div>
 
+      {/* Nav label */}
       <div className="nav-section-label">{t('nav.section')}</div>
 
-      {navItems.map(({ id, to, icon: Icon, label, badge, end }) => {
-        const isActive = end ? location.pathname === to : location.pathname.startsWith(to)
+      {/* Nav items */}
+      {navItems.map(({ to, icon: Icon, key, badge, end }) => {
+        const isActive = end
+          ? location.pathname === to
+          : location.pathname.startsWith(to)
         const badgeCount = badge ? unreadAlertCount : 0
 
         return (
           <NavLink
-            key={id}
+            key={to}
             to={to}
             end={end}
             className={`nav-item ${isActive ? 'active' : ''}`}
             style={{ textDecoration: 'none' }}
           >
             <Icon size={16} strokeWidth={1.8} style={{ flexShrink: 0 }} />
-            <span>{label}</span>
-            {badgeCount > 0 && <span className="nav-badge">{badgeCount}</span>}
+            <span>{t(key)}</span>
+            {badgeCount > 0 && (
+              <span className="nav-badge">{badgeCount}</span>
+            )}
           </NavLink>
         )
       })}
 
+      {/* Bottom section */}
       <div className="sidebar-bottom">
+        {/* Weather mini card */}
         <div className="weather-mini-card" style={{ minHeight: 64, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           {!appUser.location ? (
-            <div
+            <div 
               style={{ fontSize: 13, color: 'var(--accent-blue)', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}
               onClick={() => useAppStore.getState().setShowLocationModal(true)}
             >
@@ -98,7 +87,7 @@ export default function Sidebar() {
           ) : weatherError && !currentWeather ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <div style={{ fontSize: 12, color: 'var(--status-nogo)' }}>{t('sidebar.weatherUnavailable')}</div>
-              <span
+              <span 
                 style={{ fontSize: 11, color: 'var(--accent-blue)', cursor: 'pointer', fontWeight: 500 }}
                 onClick={() => useAppStore.getState().setShowLocationModal(true)}
               >
@@ -110,15 +99,19 @@ export default function Sidebar() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ fontSize: 24 }}>🌤️</span>
                 <div>
-                  <div className="temp">{currentWeather.temperature}°C</div>
-                  <div className="loc">{currentWeather.condition}</div>
+                  <div className="temp">
+                    {currentWeather.temperature}°C
+                  </div>
+                  <div className="loc">
+                    {currentWeather.condition}
+                  </div>
                 </div>
               </div>
               <div className="loc" style={{ marginTop: 6, fontWeight: 500, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: 120 }}>
                   {appUser.locationName || currentWeather.location}
                 </span>
-                <span
+                <span 
                   style={{ fontSize: 10, color: 'var(--accent-blue)', cursor: 'pointer', fontWeight: 600 }}
                   onClick={() => useAppStore.getState().setShowLocationModal(true)}
                 >
@@ -131,6 +124,7 @@ export default function Sidebar() {
           )}
         </div>
 
+        {/* Offline mode toggle */}
         <div className="offline-toggle">
           <div>
             <div style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -151,6 +145,7 @@ export default function Sidebar() {
           />
         </div>
 
+        {/* User card */}
         <div className="user-card">
           <div className="avatar">
             {user?.name ? (
@@ -166,7 +161,7 @@ export default function Sidebar() {
               {user?.name || 'Guest'}
             </div>
             <div className="user-card-role" style={{ textTransform: 'capitalize' }}>
-              {String(user?.role || 'Fisherman').toLowerCase()}
+              {user?.role ? user.role : 'Fisherman'}
             </div>
           </div>
           <div style={{ fontSize: 16, color: 'var(--text-light)', cursor: 'pointer' }}>

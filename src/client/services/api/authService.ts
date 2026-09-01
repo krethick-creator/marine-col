@@ -1,10 +1,8 @@
-import type { UserRole } from '../../config/roleConfig';
-
 export interface AuthUser {
   id: string;
   name: string;
   email: string;
-  role: UserRole;
+  role: string;
   location?: string;
 }
 
@@ -13,97 +11,85 @@ export interface AuthResponse {
   token: string;
 }
 
-// Prepare backend REST endpoints for later integration
 const API_URL = '/api/auth';
 
-/**
- * Clean mock authentication service.
- * Can be swapped for real fetch/axios calls to the Node.js backend later.
- */
-class AuthService {
-  private isMock = false;
+function unwrapAuthPayload(json: any): any {
+  if (json && typeof json === 'object' && json.data && typeof json.data === 'object') {
+    return json.data;
+  }
+  return json;
+}
 
-  async login(email: string, password: string):Promise<AuthResponse> {
-    if (this.isMock) {
-      // Simulate network delay
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      if (email === 'demo@orca.gov' && password === 'orca2026') {
-        return {
-          user: {
-            id: 'u-1',
-            name: 'Ramesh K.',
-            email: 'demo@orca.gov',
-            role: 'fisherman',
-            location: 'Chennai Coast'
-          },
-          token: 'mock-jwt-token-abc123'
-        };
-      }
-      throw new Error('Invalid email or password. (Hint: demo@orca.gov / orca2026)');
-    }
-    
+function normalizeAuthResponse(payload: any): AuthResponse {
+  const userRaw = payload?.user;
+  const token = payload?.token;
+  if (!token || !userRaw) {
+    throw new Error('Login succeeded but the session payload was incomplete.');
+  }
+
+  return {
+    token: String(token),
+    user: {
+      id: String(userRaw.id),
+      name: userRaw.name || 'ORCA User',
+      email: userRaw.email || '',
+      role: userRaw.role || 'Fisherman',
+      location: userRaw.location,
+    },
+  };
+}
+
+class AuthService {
+  async login(email: string, password: string): Promise<AuthResponse> {
     const res = await fetch(`${API_URL}/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ email, password })
     });
-    if (!res.ok) throw new Error('Login failed');
-    return res.json();
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || json.ok === false) {
+      throw new Error(json.error || 'Login failed');
+    }
+    return normalizeAuthResponse(unwrapAuthPayload(json));
   }
 
-  async register(data: any):Promise<AuthResponse> {
-    if (this.isMock) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      return {
-        user: {
-          id: 'u-2',
-          name: data.name,
-          email: data.email,
-          role: data.role,
-          location: data.location
-        },
-        token: 'mock-jwt-token-newuser'
-      };
-    }
-
+  async register(data: any): Promise<AuthResponse> {
     const res = await fetch(`${API_URL}/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify(data)
     });
-    if (!res.ok) throw new Error('Registration failed');
-    return res.json();
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || json.ok === false) {
+      throw new Error(json.error || 'Registration failed');
+    }
+    return normalizeAuthResponse(unwrapAuthPayload(json));
   }
 
-  async logout():Promise<void> {
-    if (this.isMock) {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      return;
-    }
-    await fetch(`${API_URL}/logout`, { method: 'POST' });
+  async logout(): Promise<void> {
+    await fetch(`${API_URL}/logout`, { method: 'POST', credentials: 'include' });
   }
 
-  async getCurrentUser(token: string):Promise<AuthUser> {
-    if (this.isMock) {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      if (token.includes('mock')) {
-        return {
-          id: 'u-1',
-          name: 'Ramesh K.',
-          email: 'demo@orca.gov',
-          role: 'fisherman',
-          location: 'Chennai Coast'
-        };
-      }
-      throw new Error('Invalid token');
-    }
-
+  async getCurrentUser(token: string): Promise<AuthUser> {
     const res = await fetch(`${API_URL}/me`, {
-      headers: { 'Authorization': `Bearer ${token}` }
+      headers: { 'Authorization': `Bearer ${token}` },
+      credentials: 'include',
     });
-    if (!res.ok) throw new Error('Not authenticated');
-    return res.json();
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || json.ok === false) {
+      throw new Error(json.error || 'Not authenticated');
+    }
+    const payload = unwrapAuthPayload(json);
+    const userRaw = payload.user || payload;
+    return {
+      id: String(userRaw.id),
+      name: userRaw.name || 'ORCA User',
+      email: userRaw.email || '',
+      role: userRaw.role || 'Fisherman',
+      location: userRaw.location,
+    };
   }
 }
 

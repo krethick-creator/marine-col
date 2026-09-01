@@ -3,8 +3,10 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import OrcaLogo from '../../components/ui/OrcaLogo';
+import { useTranslation } from '../../locales';
 
 export default function Login() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -28,8 +30,8 @@ export default function Login() {
       <div className="glass-card auth-card" style={{ margin: 'auto', marginTop: '40px', marginBottom: '40px' }}>
         <div className="auth-header">
           <OrcaLogo size={48} />
-          <h1 className="auth-title">Welcome back to ORCA</h1>
-          <p className="auth-subtitle">Sign in to your account</p>
+          <h1 className="auth-title">{t('auth.welcomeBack')}</h1>
+          <p className="auth-subtitle">{t('auth.signIn')}</p>
         </div>
 
         {error && (
@@ -40,7 +42,7 @@ export default function Login() {
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div className="form-group">
-            <label className="form-label">Email Address</label>
+            <label className="form-label">{t('auth.emailAddress')}</label>
             <input 
               type="email" 
               className="form-input" 
@@ -53,8 +55,8 @@ export default function Login() {
 
           <div className="form-group">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <label className="form-label">Password</label>
-              <Link to="/forgot-password" className="form-link" style={{ fontSize: 12 }}>Forgot password?</Link>
+              <label className="form-label">{t('auth.password')}</label>
+              <Link to="/forgot-password" className="form-link" style={{ fontSize: 12 }}>{t('auth.forgotPassword')}</Link>
             </div>
             <div className="password-wrapper">
               <input 
@@ -78,16 +80,16 @@ export default function Login() {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: -4 }}>
             <input type="checkbox" id="remember" style={{ cursor: 'pointer' }} />
-            <label htmlFor="remember" style={{ fontSize: 13, color: 'var(--text-light)', cursor: 'pointer' }}>Remember me</label>
+            <label htmlFor="remember" style={{ fontSize: 13, color: 'var(--text-light)', cursor: 'pointer' }}>{t('auth.rememberMe')}</label>
           </div>
 
           <button type="submit" className="form-button" disabled={isLoading || !email || !password}>
-            {isLoading ? <Loader2 size={18} className="spin" /> : 'Log In'}
+            {isLoading ? <Loader2 size={18} className="spin" /> : t('auth.logIn')}
           </button>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '8px 0' }}>
             <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.1)' }} />
-            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>OR</span>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('auth.or')}</span>
             <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.1)' }} />
           </div>
 
@@ -95,12 +97,12 @@ export default function Login() {
             <svg width="18" height="18" viewBox="0 0 24 24">
               <path fill="#fff" d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z" />
             </svg>
-            Continue with Google
+            {t('auth.continueGoogle')}
           </button>
         </form>
 
         <div style={{ textAlign: 'center', fontSize: 13, color: 'var(--text-light)', marginTop: 12 }}>
-          Don't have an account? <Link to="/register" className="form-link">Create account</Link>
+          {t('auth.noAccount')} <Link to="/register" className="form-link">{t('auth.createAccount')}</Link>
         </div>
       </div>
       

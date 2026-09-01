@@ -3,8 +3,10 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import OrcaLogo from '../../components/ui/OrcaLogo';
+import { useTranslation } from '../../locales';
 
 export default function Register() {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -58,8 +60,8 @@ export default function Register() {
       <div className="glass-card auth-card" style={{ maxWidth: 520, margin: 'auto', marginTop: '40px', marginBottom: '40px' }}>
         <div className="auth-header">
           <OrcaLogo size={42} />
-          <h1 className="auth-title">Create Account</h1>
-          <p className="auth-subtitle">Join the ORCA Marine Intelligence network</p>
+          <h1 className="auth-title">{t('auth.createAccount')}</h1>
+          <p className="auth-subtitle">{t('auth.joinNetwork')}</p>
         </div>
 
         {error && (
@@ -72,34 +74,33 @@ export default function Register() {
           
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <div className="form-group">
-              <label className="form-label">Full Name</label>
+              <label className="form-label">{t('auth.fullName')}</label>
               <input type="text" name="name" className="form-input" placeholder="Ramesh K." value={formData.name} onChange={handleChange} required />
             </div>
             <div className="form-group">
-              <label className="form-label">Email</label>
+              <label className="form-label">{t('auth.emailAddress')}</label>
               <input type="email" name="email" className="form-input" placeholder="name@example.com" value={formData.email} onChange={handleChange} required />
             </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <div className="form-group">
-              <label className="form-label">User Type</label>
+              <label className="form-label">{t('auth.userType')}</label>
               <select name="role" className="form-input" value={formData.role} onChange={handleChange} style={{ appearance: 'none' }}>
-                <option value="Fisherman">Fisherman</option>
-                <option value="Marine Researcher">Marine Researcher</option>
-                <option value="Coastal Officer">Coastal Officer</option>
-                <option value="Maritime Operator">Maritime Operator</option>
-                <option value="Other">Other</option>
+                <option value="Fisherman">{t('auth.fisherman')}</option>
+                <option value="Marine Researcher">{t('auth.researcher')}</option>
+                <option value="Coastal Officer">{t('auth.officer')}</option>
+                <option value="General">{t('auth.general')}</option>
               </select>
             </div>
             <div className="form-group">
-              <label className="form-label">Operating Region</label>
+              <label className="form-label">{t('auth.operatingRegion')}</label>
               <input type="text" name="location" className="form-input" placeholder="e.g. Chennai Coast" value={formData.location} onChange={handleChange} required />
             </div>
           </div>
 
           <div className="form-group">
-            <label className="form-label">Password</label>
+            <label className="form-label">{t('auth.password')}</label>
             <div className="password-wrapper">
               <input 
                 type={showPassword ? 'text' : 'password'} 
@@ -125,25 +126,25 @@ export default function Register() {
           </div>
 
           <div className="form-group">
-            <label className="form-label">Confirm Password</label>
+            <label className="form-label">{t('auth.confirmPassword')}</label>
             <input type="password" name="confirmPassword" className="form-input" placeholder="••••••••" value={formData.confirmPassword} onChange={handleChange} required />
           </div>
 
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 8 }}>
             <input type="checkbox" id="terms" checked={acceptedTerms} onChange={(e) => setAcceptedTerms(e.target.checked)} style={{ cursor: 'pointer', marginTop: 3 }} />
             <label htmlFor="terms" style={{ fontSize: 13, color: 'var(--text-light)', lineHeight: 1.4 }}>
-              I agree to the <a href="#" className="form-link">Terms of Service</a>, <a href="#" className="form-link">Privacy Policy</a>, and understand that ORCA provides AI-assisted guidance, not definitive maritime orders.
+              {t('auth.termsAgree')}
             </label>
           </div>
 
           <button type="submit" className="form-button" disabled={isLoading || !acceptedTerms}>
-            {isLoading ? <Loader2 size={18} className="spin" /> : 'Create Account'}
+            {isLoading ? <Loader2 size={18} className="spin" /> : t('auth.createAccount')}
           </button>
           
         </form>
 
         <div style={{ textAlign: 'center', fontSize: 13, color: 'var(--text-light)', marginTop: 4 }}>
-          Already have an account? <Link to="/login" className="form-link">Log in</Link>
+          {t('auth.alreadyAccount')} <Link to="/login" className="form-link">{t('auth.logIn')}</Link>
         </div>
       </div>
       

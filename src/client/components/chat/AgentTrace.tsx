@@ -33,6 +33,12 @@ export default function AgentTrace({ steps, currentIndex }: AgentTraceProps) {
     }
   }, [visibleCount, steps.length])
 
+  const getAgentName = (step: AgentTraceStep) => {
+    const key = `agents.${step.agentId}` as any
+    const translated = t(key)
+    return translated !== key ? translated : step.agentName
+  }
+
   return (
     <div className="agent-trace">
       <div className="agent-trace-title">🔍 {t('chat.analysing')}</div>
@@ -53,7 +59,7 @@ export default function AgentTrace({ steps, currentIndex }: AgentTraceProps) {
                 {status === 'pending'&& <Circle size={10} style={{ opacity: 0.3 }} />}
               </div>
               <span style={{ fontSize: 12 }}>{emoji}</span>
-              <span>{step.agentName}</span>
+              <span>{getAgentName(step)}</span>
               {status === 'active' && (
                 <span style={{ marginLeft: 'auto', fontSize: 11, color: 'rgba(126,200,227,0.5)' }}>
                   {t('chat.working')}

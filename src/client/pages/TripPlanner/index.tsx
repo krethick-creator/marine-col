@@ -2,6 +2,10 @@ import { useState, useEffect, useRef } from 'react'
 import * as maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { analyzeTrip, routeToGeoJSON, getRouteStatusColor, type TripAnalysisResult } from '../../services/api/routeService'
+import { useTranslation } from '../../locales'
+import { useAppStore } from '../../store'
+import { useAuthStore } from '../../store/authStore'
+import { mapRoleToCanonicalRole, ROLE_CONFIGS } from '../../config/roleConfig'
 
 const PRESET_ROUTES = [
   { name: 'Chennai → Puducherry', origin: { name: 'Chennai Harbour', lat: 13.0827, lon: 80.2707 }, dest: { name: 'Puducherry Port', lat: 11.9416, lon: 79.8083 } },
@@ -11,6 +15,7 @@ const PRESET_ROUTES = [
 ]
 
 export default function TripPlannerPage() {
+  const { t } = useTranslation()
   const instanceId = useRef(Math.random().toString(36).slice(2))
   console.log('[TripPlanner] render instance:', instanceId.current)
 
@@ -32,7 +37,15 @@ export default function TripPlannerPage() {
       return 'small'
     }
   })
-  const [purpose, setPurpose] = useState('Fishing')
+
+  const { user: authUser } = useAuthStore()
+  const { user: appUser } = useAppStore()
+  const rawRole = authUser?.role || (appUser as any)?.role
+  const canonicalRole = mapRoleToCanonicalRole(rawRole)
+  const roleConfig = ROLE_CONFIGS[canonicalRole]
+
+  const defaultPurpose = roleConfig.tripPlannerDefaultPurpose === 'research' ? 'Research' : roleConfig.tripPlannerDefaultPurpose === 'fishing' ? 'Fishing' : 'General'
+  const [purpose, setPurpose] = useState(defaultPurpose)
 
   useEffect(() => {
     try {
@@ -219,7 +232,7 @@ export default function TripPlannerPage() {
   // GPS trigger
   const handleUseCurrentLocation = () => {
     if (!navigator.geolocation) {
-      alert('Geolocation is not supported by your browser.')
+      alert(t('location.geoNotSupported'))
       return
     }
     navigator.geolocation.getCurrentPosition(
@@ -229,7 +242,7 @@ export default function TripPlannerPage() {
         setOriginName('Current GPS Location')
       },
       (err) => {
-        alert(`Failed to get GPS location: ${err.message}`)
+        alert(`${t('location.permissionDenied')}: ${err.message}`)
       }
     )
   }
@@ -319,18 +332,18 @@ export default function TripPlannerPage() {
     <div className="page-shell">
       <div className="page-header">
         <div>
-          <h1 className="page-title">🧭 Marine Trip Planner</h1>
-          <p className="page-subtitle">AI-powered multi-agent safety & route engine for sea operations</p>
+          <h1 className="page-title">🧭 {t('tripPlanner.title')}</h1>
+          <p className="page-subtitle">{t('tripPlanner.subtitle')}</p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {loading && (
             <div style={{ fontSize: 12, color: 'rgba(126,200,227,0.8)', padding: '6px 14px', borderRadius: 99, background: 'rgba(30,95,168,0.2)', border: '1px solid rgba(30,95,168,0.3)' }}>
-              ⏳ Analyzing Route...
+              ⏳ {t('tripPlanner.analyzingRoute')}
             </div>
           )}
           {analysis && (
             <div style={{ fontSize: 12, color: analysis.geospatial.isMockData ? 'rgba(251,191,36,0.8)' : 'rgba(16,185,129,0.8)', padding: '6px 14px', borderRadius: 99, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)' }}>
-              {analysis.geospatial.isMockData ? '⚠️ DEMO DATA' : '✅ LIVE POSTGIS DATA'}
+              {analysis.geospatial.isMockData ? `⚠️ ${t('tripPlanner.demoData')}` : `✅ ${t('tripPlanner.livePostgisData')}`}
             </div>
           )}
         </div>
@@ -338,13 +351,13 @@ export default function TripPlannerPage() {
 
       {error && (
         <div style={{ padding: '12px 16px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 12, color: '#f87171', fontSize: 13.5 }}>
-          ⚠️ <b>Trip Planning Error:</b> {error}
+          ⚠️ <b>{t('tripPlanner.tripPlanningError')}</b> {error}
         </div>
       )}
 
       {/* Preset Buttons */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-        <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', fontWeight: 600 }}>Quick Presets:</span>
+        <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', fontWeight: 600 }}>{t('tripPlanner.quickPresets')}</span>
         {PRESET_ROUTES.map((p) => (
           <button
             key={p.name}
@@ -368,13 +381,13 @@ export default function TripPlannerPage() {
         {/* Origin Name & GPS */}
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-            <label style={{ fontSize: 12, color: 'rgba(184,223,240,0.8)', fontWeight: 600 }}>Start Location</label>
+            <label style={{ fontSize: 12, color: 'rgba(184,223,240,0.8)', fontWeight: 600 }}>{t('tripPlanner.startLocation')}</label>
             <button
               type="button"
               onClick={handleUseCurrentLocation}
               style={{ fontSize: 11, background: 'none', border: 'none', color: 'var(--accent-blue)', cursor: 'pointer', fontWeight: 600 }}
             >
-              📍 Use GPS Location
+              📍 {t('tripPlanner.useGps')}
             </button>
           </div>
           <input
@@ -389,7 +402,7 @@ export default function TripPlannerPage() {
 
         {/* Origin Coordinates */}
         <div>
-          <label style={{ fontSize: 12, color: 'rgba(184,223,240,0.8)', fontWeight: 600, display: 'block', marginBottom: 6 }}>Start Lat / Lon</label>
+          <label style={{ fontSize: 12, color: 'rgba(184,223,240,0.8)', fontWeight: 600, display: 'block', marginBottom: 6 }}>{t('tripPlanner.startLatLon')}</label>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <input
               type="number"
@@ -415,7 +428,7 @@ export default function TripPlannerPage() {
 
         {/* Destination Name */}
         <div>
-          <label style={{ fontSize: 12, color: 'rgba(184,223,240,0.8)', fontWeight: 600, display: 'block', marginBottom: 6 }}>Destination Name</label>
+          <label style={{ fontSize: 12, color: 'rgba(184,223,240,0.8)', fontWeight: 600, display: 'block', marginBottom: 6 }}>{t('tripPlanner.destinationName')}</label>
           <input
             type="text"
             value={destName}
@@ -428,7 +441,7 @@ export default function TripPlannerPage() {
 
         {/* Destination Coordinates */}
         <div>
-          <label style={{ fontSize: 12, color: 'rgba(184,223,240,0.8)', fontWeight: 600, display: 'block', marginBottom: 6 }}>Destination Lat / Lon</label>
+          <label style={{ fontSize: 12, color: 'rgba(184,223,240,0.8)', fontWeight: 600, display: 'block', marginBottom: 6 }}>{t('tripPlanner.destLatLon')}</label>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <input
               type="number"
@@ -454,7 +467,7 @@ export default function TripPlannerPage() {
 
         {/* Departure Date & Time */}
         <div>
-          <label style={{ fontSize: 12, color: 'rgba(184,223,240,0.8)', fontWeight: 600, display: 'block', marginBottom: 6 }}>Departure Date & Time</label>
+          <label style={{ fontSize: 12, color: 'rgba(184,223,240,0.8)', fontWeight: 600, display: 'block', marginBottom: 6 }}>{t('tripPlanner.departureDateTime')}</label>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <input
               type="date"
@@ -473,30 +486,35 @@ export default function TripPlannerPage() {
 
         {/* Vessel Profile */}
         <div>
-          <label style={{ fontSize: 12, color: 'rgba(184,223,240,0.8)', fontWeight: 600, display: 'block', marginBottom: 6 }}>Boat Profile</label>
+          <label style={{ fontSize: 12, color: 'rgba(184,223,240,0.8)', fontWeight: 600, display: 'block', marginBottom: 6 }}>{t('tripPlanner.boatProfile')}</label>
           <select
             value={boatKey}
             onChange={(e) => setBoatKey(e.target.value as 'small' | 'mechanized')}
             style={{ width: '100%', padding: '10px 12px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 10, color: '#fff', fontSize: 13.5 }}
           >
-            <option value="small" style={{ background: '#1e293b' }}>Small traditional boat (12 km/h, max 1.2m wave)</option>
-            <option value="mechanized" style={{ background: '#1e293b' }}>Mechanized boat (18 km/h, max 2.0m wave)</option>
+            <option value="small" style={{ background: '#1e293b' }}>{t('tripPlanner.smallBoat')}</option>
+            <option value="mechanized" style={{ background: '#1e293b' }}>{t('tripPlanner.mechanizedBoat')}</option>
           </select>
         </div>
 
         {/* Trip Purpose & Submit Button */}
         <div style={{ gridColumn: '1 / -1', display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <label style={{ fontSize: 12, color: 'rgba(184,223,240,0.8)', fontWeight: 600 }}>Trip Purpose:</label>
-            {['Fishing', 'Research', 'Transport', 'General'].map((p) => (
-              <label key={p} style={{ fontSize: 13, color: '#fff', display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
+            <label style={{ fontSize: 12, color: 'rgba(184,223,240,0.8)', fontWeight: 600 }}>{t('tripPlanner.tripPurpose')}</label>
+            {[
+              { id: 'Fishing', label: t('tripPlanner.fishing') },
+              { id: 'Research', label: t('tripPlanner.research') },
+              { id: 'Transport', label: t('tripPlanner.transport') },
+              { id: 'General', label: t('tripPlanner.general') },
+            ].map((p) => (
+              <label key={p.id} style={{ fontSize: 13, color: '#fff', display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
                 <input
                   type="radio"
                   name="purpose"
-                  checked={purpose === p}
-                  onChange={() => setPurpose(p)}
+                  checked={purpose === p.id}
+                  onChange={() => setPurpose(p.id)}
                 />
-                {p}
+                {p.label}
               </label>
             ))}
           </div>
@@ -517,7 +535,7 @@ export default function TripPlannerPage() {
               transition: 'transform 0.2s',
             }}
           >
-            {loading ? '⏳ Calculating Route...' : '🚀 Analyze Trip & Generate Route'}
+            {loading ? `⏳ ${t('tripPlanner.calculatingRoute')}` : `🚀 ${t('tripPlanner.analyzeTripRoute')}`}
           </button>
         </div>
       </form>
@@ -527,7 +545,7 @@ export default function TripPlannerPage() {
         <div ref={mapContainer} style={{ width: '100%', height: '100%', borderRadius: 12 }} />
         {!analysis && (
           <div style={{ position: 'absolute', top: 32, left: 32, zIndex: 10, background: 'rgba(10,20,30,0.85)', padding: '10px 16px', borderRadius: 8, color: '#e0f0ff', fontSize: 13 }}>
-            📍 Select origin and destination, then click <b>Analyze Trip</b> to visualize the safe route.
+            📍 {t('tripPlanner.mapInstruction')}
           </div>
         )}
       </div>
@@ -540,13 +558,13 @@ export default function TripPlannerPage() {
             <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
               <div>
                 <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.6)', fontWeight: 700 }}>
-                  Trip Safety Assessment
+                  {t('tripPlanner.tripSafetyAssessment')}
                 </div>
                 <h2 style={{ fontSize: 24, fontWeight: 800, marginTop: 4 }}>
                   {analysis.tripSummary.originName} → {analysis.tripSummary.destName}
                 </h2>
                 <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>
-                  Departure: <b>{analysis.tripSummary.departureDate} at {analysis.tripSummary.departureTime}</b> · Vessel: <b>{analysis.tripSummary.boatLabel}</b>
+                  {t('tripPlanner.departure')} <b>{analysis.tripSummary.departureDate} {t('tripPlanner.at')} {analysis.tripSummary.departureTime}</b> · {t('tripPlanner.vessel')} <b>{analysis.tripSummary.boatLabel}</b>
                 </div>
               </div>
 
@@ -560,7 +578,7 @@ export default function TripPlannerPage() {
                 color: analysis.risk.overallStatus === 'NO_GO' ? '#f87171' : analysis.risk.overallStatus === 'CAUTION' ? '#fbbf24' : '#34d399',
                 border: `1px solid ${analysis.risk.overallStatus === 'NO_GO' ? 'rgba(239,68,68,0.4)' : analysis.risk.overallStatus === 'CAUTION' ? 'rgba(245,158,11,0.4)' : 'rgba(16,185,129,0.4)'}`,
               }}>
-                {analysis.risk.overallStatus === 'NO_GO' ? '🚫 NO-GO' : analysis.risk.overallStatus === 'CAUTION' ? '⚠️ CAUTION' : '✅ GO'}
+                {analysis.risk.overallStatus === 'NO_GO' ? t('risk.noGoLabel') : analysis.risk.overallStatus === 'CAUTION' ? t('risk.cautionLabel') : t('risk.goLabel')}
               </div>
             </div>
           </div>
@@ -568,36 +586,36 @@ export default function TripPlannerPage() {
           {/* Route Summary */}
           <div className="glass-card" style={{ padding: 20 }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-              🧭 Route Analysis
+              🧭 {t('tripPlanner.routeAnalysis')}
             </h3>
             {analysis.route && analysis.route.success ? (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div className="evidence-item">
-                  <div className="evidence-label">Route Distance</div>
+                  <div className="evidence-label">{t('tripPlanner.routeDistance')}</div>
                   <div className="evidence-value">{analysis.route.distanceKm} km</div>
-                  <div className="evidence-meta">Straight: {analysis.route.straightLineDistanceKm} km</div>
+                  <div className="evidence-meta">{t('tripPlanner.straight')} {analysis.route.straightLineDistanceKm} km</div>
                 </div>
                 <div className="evidence-item">
-                  <div className="evidence-label">Est. Travel Time</div>
+                  <div className="evidence-label">{t('tripPlanner.estTravelTime')}</div>
                   <div className="evidence-value">{Math.floor(analysis.route.travelTimeMinutes / 60)}h {analysis.route.travelTimeMinutes % 60}m</div>
-                  <div className="evidence-meta">{analysis.route.travelTimeMinutes} mins</div>
+                  <div className="evidence-meta">{analysis.route.travelTimeMinutes} {t('tripPlanner.mins')}</div>
                 </div>
                 <div className="evidence-item">
-                  <div className="evidence-label">Waypoints</div>
-                  <div className="evidence-value">{analysis.route.waypoints.length} nodes</div>
+                  <div className="evidence-label">{t('tripPlanner.waypoints')}</div>
+                  <div className="evidence-value">{analysis.route.waypoints.length} {t('tripPlanner.nodes')}</div>
                   <div className="evidence-meta">A* Weather Grid</div>
                 </div>
                 <div className="evidence-item">
-                  <div className="evidence-label">Hazards Avoided</div>
-                  <div className="evidence-value">{analysis.route.blockedNodesEncountered} nodes</div>
-                  <div className="evidence-meta">{analysis.route.restrictedZonesAvoided.length} zones</div>
+                  <div className="evidence-label">{t('tripPlanner.hazardsAvoided')}</div>
+                  <div className="evidence-value">{analysis.route.blockedNodesEncountered} {t('tripPlanner.nodes')}</div>
+                  <div className="evidence-meta">{analysis.route.restrictedZonesAvoided.length} {t('tripPlanner.zones')}</div>
                 </div>
               </div>
             ) : (
               <div style={{ color: 'var(--status-nogo)', fontSize: 13, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <span>⚠️ <b>Safe route calculation failed:</b> Peak sea conditions or restricted boundaries prevent a traversable safe path for this vessel.</span>
+                <span>⚠️ {t('tripPlanner.routeFailed')}</span>
                 {analysis.route && (
-                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Straight-line Distance: <b>{analysis.route.straightLineDistanceKm} km</b></span>
+                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>{t('tripPlanner.straight')} <b>{analysis.route.straightLineDistanceKm} km</b></span>
                 )}
               </div>
             )}
@@ -606,89 +624,89 @@ export default function TripPlannerPage() {
           {/* Weather Conditions */}
           <div className="glass-card" style={{ padding: 20 }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-              🌤 Weather Conditions
+              🌤 {t('tripPlanner.weatherConditions')}
             </h3>
             {analysis.weather ? (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div className="evidence-item">
-                  <div className="evidence-label">Temperature</div>
+                  <div className="evidence-label">{t('tripPlanner.temperature')}</div>
                   <div className="evidence-value">{analysis.weather.temperature}°C</div>
-                  <div className="evidence-meta">Feels like {analysis.weather.feelsLike}°C</div>
+                  <div className="evidence-meta">{t('tripPlanner.feelsLike')} {analysis.weather.feelsLike}°C</div>
                 </div>
                 <div className="evidence-item">
-                  <div className="evidence-label">Wind Speed</div>
+                  <div className="evidence-label">{t('tripPlanner.windSpeed')}</div>
                   <div className="evidence-value">{analysis.weather.windSpeed} km/h</div>
-                  <div className="evidence-meta">Dir: {analysis.weather.windDirection}</div>
+                  <div className="evidence-meta">{t('tripPlanner.dir')} {analysis.weather.windDirection}</div>
                 </div>
                 <div className="evidence-item">
-                  <div className="evidence-label">Condition</div>
+                  <div className="evidence-label">{t('tripPlanner.condition')}</div>
                   <div className="evidence-value">{analysis.weather.condition}</div>
-                  <div className="evidence-meta">Humidity: {analysis.weather.humidity}%</div>
+                  <div className="evidence-meta">{t('tripPlanner.humidity')} {analysis.weather.humidity}%</div>
                 </div>
                 <div className="evidence-item">
-                  <div className="evidence-label">Rain Risk</div>
+                  <div className="evidence-label">{t('tripPlanner.rainRisk')}</div>
                   <div className="evidence-value">{analysis.weather.rainProbability}%</div>
-                  <div className="evidence-meta">Vis: {(analysis.weather.visibility / 1000).toFixed(1)} km</div>
+                  <div className="evidence-meta">{t('tripPlanner.vis')} {(analysis.weather.visibility / 1000).toFixed(1)} km</div>
                 </div>
               </div>
             ) : (
-              <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>Weather data loading...</div>
+              <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>{t('tripPlanner.weatherLoading')}</div>
             )}
           </div>
 
           {/* Ocean Conditions */}
           <div className="glass-card" style={{ padding: 20 }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-              🌊 Ocean Conditions
+              🌊 {t('tripPlanner.oceanConditions')}
             </h3>
             {analysis.ocean ? (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div className="evidence-item">
-                  <div className="evidence-label">Wave Height</div>
+                  <div className="evidence-label">{t('tripPlanner.waveHeight')}</div>
                   <div className="evidence-value">{analysis.ocean.waveHeight ?? '—'} m</div>
-                  <div className="evidence-meta">Dir: {analysis.ocean.waveDirection ? `${analysis.ocean.waveDirection}°` : 'SE'}</div>
+                  <div className="evidence-meta">{t('tripPlanner.dir')} {analysis.ocean.waveDirection ? `${analysis.ocean.waveDirection}°` : 'SE'}</div>
                 </div>
                 <div className="evidence-item">
-                  <div className="evidence-label">Swell Period</div>
+                  <div className="evidence-label">{t('tripPlanner.swellPeriod')}</div>
                   <div className="evidence-value">{analysis.ocean.swellPeriod ?? '—'} s</div>
-                  <div className="evidence-meta">Dir: {analysis.ocean.swellDirection ?? '—'}</div>
+                  <div className="evidence-meta">{t('tripPlanner.dir')} {analysis.ocean.swellDirection ?? '—'}</div>
                 </div>
                 <div className="evidence-item">
-                  <div className="evidence-label">Sea State</div>
+                  <div className="evidence-label">{t('tripPlanner.seaState')}</div>
                   <div className="evidence-value">{analysis.ocean.seaState ?? 'Moderate'}</div>
-                  <div className="evidence-meta">SST: {analysis.ocean.sst ? `${analysis.ocean.sst}°C` : '—'}</div>
+                  <div className="evidence-meta">{t('tripPlanner.sst')} {analysis.ocean.sst ? `${analysis.ocean.sst}°C` : '—'}</div>
                 </div>
                 <div className="evidence-item">
-                  <div className="evidence-label">Current Speed</div>
+                  <div className="evidence-label">{t('tripPlanner.currentSpeed')}</div>
                   <div className="evidence-value">{analysis.ocean.currentSpeed ?? 0.8} km/h</div>
-                  <div className="evidence-meta">Dir: {analysis.ocean.currentDirection ?? 'NNE'}</div>
+                  <div className="evidence-meta">{t('tripPlanner.dir')} {analysis.ocean.currentDirection ?? 'NNE'}</div>
                 </div>
               </div>
             ) : (
-              <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>Ocean snapshot loading...</div>
+              <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>{t('tripPlanner.oceanLoading')}</div>
             )}
           </div>
 
           {/* Geospatial Safety */}
           <div className="glass-card" style={{ padding: 20 }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-              📐 Geospatial Safety
+              📐 {t('tripPlanner.geospatialSafety')}
             </h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div className="evidence-item">
-                <div className="evidence-label">Boundary Clearance</div>
+                <div className="evidence-label">{t('tripPlanner.boundaryClearance')}</div>
                 <div className="evidence-value">{analysis.geospatial.distanceToBoundaryNm} nm</div>
-                <div className="evidence-meta">{analysis.geospatial.distanceToBoundaryNm < 60 ? '⚠️ Boundary Proximity' : '✅ Clear'}</div>
+                <div className="evidence-meta">{analysis.geospatial.distanceToBoundaryNm < 60 ? `⚠️ ${t('tripPlanner.boundaryProximity')}` : `✅ ${t('tripPlanner.clear')}`}</div>
               </div>
               <div className="evidence-item">
-                <div className="evidence-label">Nearest Fishing Zone</div>
+                <div className="evidence-label">{t('tripPlanner.nearestFishingZone')}</div>
                 <div className="evidence-value">{analysis.geospatial.nearestFishingZoneKm > 0 ? `${analysis.geospatial.nearestFishingZoneKm} km` : 'N/A'}</div>
-                <div className="evidence-meta">Potential Fishing Zone</div>
+                <div className="evidence-meta">{t('tripPlanner.potentialFishingZone')}</div>
               </div>
               <div className="evidence-item" style={{ gridColumn: '1 / -1' }}>
-                <div className="evidence-label">Data Provider</div>
+                <div className="evidence-label">{t('tripPlanner.dataProvider')}</div>
                 <div className="evidence-value" style={{ fontSize: 13 }}>{analysis.geospatial.dataSource}</div>
-                <div className="evidence-meta">Restricted Zones Intersected: {analysis.geospatial.routeAnalysis?.restrictedZonesOnRoute?.length || 0}</div>
+                <div className="evidence-meta">{t('tripPlanner.restrictedZonesIntersected')} {analysis.geospatial.routeAnalysis?.restrictedZonesOnRoute?.length || 0}</div>
               </div>
             </div>
           </div>
@@ -696,7 +714,7 @@ export default function TripPlannerPage() {
           {/* Safety Recommendation & Reasons */}
           <div className="glass-card" style={{ gridColumn: '1 / -1', padding: 20 }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-              🛡 Safety Guidance & Risk Assessment
+              🛡 {t('tripPlanner.safetyGuidance')}
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {analysis.risk.reasons.map((reason, idx) => (

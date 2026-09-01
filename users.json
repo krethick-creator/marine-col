@@ -12,5 +12,12 @@
     "email": "padmaneela.palanikumar@gmail.com",
     "password": "Padma@2007",
     "role": "FISHERMAN"
+  },
+  {
+    "id": "1",
+    "name": "krethick",
+    "email": "admin@recruitment.com",
+    "password": "slrk3232",
+    "role": "FISHERMAN"
   }
 ]

@@ -314,12 +314,13 @@ export interface ProviderResult<T> {
 }
 
 // ─── Community ─────────────────────────────────────────────────────────
-export type PostType = 'OBSERVATION' | 'CONDITION_REPORT' | 'ZONE_REPORT' | 'DANGER_REPORT'
+export type PostType = 'OBSERVATION' | 'CONDITION_REPORT' | 'ZONE_REPORT' | 'DANGER_REPORT' | 'OTHER'
 
 export interface CommunityPost {
   id: string
   userId: string
   userName: string
+  userRole?: string
   postType: PostType
   title: string
   content: string
@@ -328,8 +329,8 @@ export interface CommunityPost {
   images?: string[]
   reactions: { like: number; helpful: number; verify: number }
   commentsCount: number
-  createdAt: Date
-  isOfficial: false    // Community posts are NEVER official
+  createdAt: Date | string
+  isOfficial: boolean
   isVerified: boolean
 }
 
@@ -358,6 +359,8 @@ export interface SOSEvent {
 export interface JWTPayload {
   userId: string
   role: string
+  email?: string
+  name?: string
   iat?: number
   exp?: number
 }

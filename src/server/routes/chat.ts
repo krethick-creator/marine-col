@@ -1,16 +1,64 @@
-import { Router, Request, Response } from 'express';
+import { Router } from 'express';
 import { orcaGraph } from '../agents/OrcaGraph';
 import { resolveLanguage } from '../utils/language';
+import { mapRoleToCanonicalRole } from '../utils/role';
 
 const router = Router();
 
-router.post('/stream', async (req: Request, res: Response) => {
-  const { query, location, userRole, language } = req.body;
+router.post('/transcribe', async (req, res) => {
+  try {
+    const { audio, language } = req.body;
+    if (!audio) {
+      return res.status(400).json({ error: 'Audio data is required' });
+    }
+
+    const base64Data = audio.replace(/^data:audio\/\w+;base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
+    const blob = new Blob([buffer], { type: 'audio/webm' });
+    const file = new File([blob], 'audio.webm', { type: 'audio/webm' });
+
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ error: 'Groq API key not configured' });
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('model', 'whisper-large-v3');
+    if (language) {
+      formData.append('language', language);
+    }
+
+    const groqRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: formData,
+    });
+
+    if (!groqRes.ok) {
+      const errText = await groqRes.text();
+      console.error('[STT] Groq Whisper API error:', errText);
+      return res.status(500).json({ error: 'Failed to transcribe audio' });
+    }
+
+    const result: any = await groqRes.json();
+    return res.json({ ok: true, text: result.text });
+  } catch (err: any) {
+    console.error('[STT] Transcription handler error:', err);
+    return res.status(500).json({ error: err.message || 'Internal transcription error' });
+  }
+});
+
+router.post('/stream', async (req, res) => {
+  const { query, location, language, role } = req.body;
 
   if (!query) {
     return res.status(400).json({ error: 'Query is required' });
   }
 
+  // Set up SSE Headers
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
@@ -19,9 +67,9 @@ router.post('/stream', async (req: Request, res: Response) => {
 
   try {
     const resolvedLanguage = await resolveLanguage(query, language);
-    const initialState: any = { query, userRole: userRole || 'general' };
-    initialState.contextData = { language: resolvedLanguage };
-
+    const canonicalRole = mapRoleToCanonicalRole(role || req.user?.role);
+    const initialState: any = { query };
+    initialState.contextData = { language: resolvedLanguage, role: canonicalRole };
     if (location && typeof location.lat === 'number' && typeof location.lon === 'number') {
       initialState.contextData.location = location;
     }
@@ -31,11 +79,14 @@ router.post('/stream', async (req: Request, res: Response) => {
     let finalStateObj: any = null;
     let contextData: Record<string, any> = {};
 
+    // Iterate through the graph execution steps
     for await (const chunk of stream) {
+      // chunk is an object keyed by the node name that just executed
       const nodeName = Object.keys(chunk)[0];
       const stateUpdate = (chunk as any)[nodeName];
       finalStateObj = { ...finalStateObj, ...stateUpdate };
 
+      // Accumulate contextData across nodes (same reducer as OrcaState)
       if (stateUpdate?.contextData) {
         contextData = { ...contextData, ...stateUpdate.contextData };
       }
@@ -45,9 +96,11 @@ router.post('/stream', async (req: Request, res: Response) => {
         executedSteps: stateUpdate.executedSteps,
       };
 
+      // Send the agent step update to the frontend
       res.write(`data: ${JSON.stringify(payload)}\n\n`);
     }
 
+    // Build providerStatuses map from accumulated contextData
     const providerStatuses: Record<string, { status: string; error?: string }> = {};
     const providerKeys = [
       ['weather', 'weatherStatus', 'weatherError'],
@@ -62,7 +115,10 @@ router.post('/stream', async (req: Request, res: Response) => {
       if (status) {
         const entry: { status: string; error?: string } = { status };
         const err = contextData[errorKey];
-        if (err && typeof err === 'string') entry.error = err;
+        if (err && typeof err === 'string') {
+          // Only include sanitized error strings — never raw stack traces
+          entry.error = err;
+        }
         providerStatuses[name] = entry;
       }
     }

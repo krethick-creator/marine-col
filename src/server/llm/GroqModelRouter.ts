@@ -1,5 +1,5 @@
 import { ChatGroq } from '@langchain/groq';
-import { BaseMessage } from '@langchain/core/messages';
+import { BaseMessage, HumanMessage } from '@langchain/core/messages';
 import { getModelFallbackChain, ROUTER_CONFIG } from './modelConfig';
 import { LLMTask, ModelHealth, RouterResponse } from './llmTypes';
 
@@ -240,7 +240,12 @@ class GroqModelRouter {
           timeout: ROUTER_CONFIG.requestTimeoutMs,
         });
 
-        const response = await llm.invoke(messages);
+        const hasHumanMessage = messages.some((m) => m._getType() === 'human');
+        const formattedMessages = hasHumanMessage
+          ? messages
+          : [...messages, new HumanMessage('Proceed with analysis based on system prompt.')];
+
+        const response = await llm.invoke(formattedMessages);
         
         this.markSuccess(modelName);
         console.log(`[LLM] Model ${modelName} succeeded`);

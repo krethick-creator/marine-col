@@ -15,11 +15,13 @@ import {
   Legend
 } from 'recharts'
 import { useAppStore } from '../../store'
+import { useTranslation } from '../../locales'
 import { getWeatherHistory } from '../../services/api/weatherService'
 import type { HistoricalDataPoint } from '../../types'
 import DataStatusBadge from '../../components/ui/DataStatusBadge'
 
 export default function ReportsPage() {
+  const { t } = useTranslation()
   const { user, offlineMode } = useAppStore()
   const [period, setPeriod] = useState<'today' | '7days' | '30days' | 'custom'>('7days')
   const [startDate, setStartDate] = useState('')
@@ -90,7 +92,7 @@ export default function ReportsPage() {
   const renderNoData = (title: string) => (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 220, background: 'rgba(255,255,255,0.01)', border: '1px dashed rgba(255,255,255,0.05)', borderRadius: 12, padding: 20 }}>
       <AlertTriangle size={24} color="var(--text-muted)" style={{ marginBottom: 8 }} />
-      <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>No real {title} data available for this period</span>
+      <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{t('reports.noRealData')} ({title})</span>
     </div>
   )
 
@@ -99,14 +101,14 @@ export default function ReportsPage() {
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
         <div>
           <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <BarChart2 size={24} color="var(--accent-blue)" /> Reports & Analytics
+            <BarChart2 size={24} color="var(--accent-blue)" /> {t('reports.title')}
             {offlineMode && (
               <div style={{ marginLeft: 8 }}>
                 <DataStatusBadge isCached={true} fetchedAt={historyData.length > 0 ? (historyData[0] as any).fetchedAt : undefined} />
               </div>
             )}
           </h1>
-          <p className="page-subtitle">Historical trends, parameter analysis, and weather charts for {user?.locationName || 'your region'}</p>
+          <p className="page-subtitle">{t('reports.subtitle')} {user?.locationName || 'your region'}</p>
         </div>
 
         {/* Time Filters */}
@@ -127,7 +129,7 @@ export default function ReportsPage() {
                 textTransform: 'capitalize'
               }}
             >
-              {p === '7days' ? 'Last 7 Days' : p === '30days' ? 'Last 30 Days' : p}
+              {p === 'today' ? t('reports.today') : p === '7days' ? t('reports.last7days') : p === '30days' ? t('reports.last30days') : t('reports.custom')}
             </button>
           ))}
         </div>
@@ -137,7 +139,7 @@ export default function ReportsPage() {
       {period === 'custom' && (
         <div className="glass-card" style={{ display: 'flex', gap: 16, padding: 16, borderRadius: 12, marginBottom: 20, alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 12, color: 'var(--text-light)' }}>Start Date:</span>
+            <span style={{ fontSize: 12, color: 'var(--text-light)' }}>{t('reports.startDate')}</span>
             <input
               type="date"
               value={startDate}
@@ -146,7 +148,7 @@ export default function ReportsPage() {
             />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 12, color: 'var(--text-light)' }}>End Date:</span>
+            <span style={{ fontSize: 12, color: 'var(--text-light)' }}>{t('reports.endDate')}</span>
             <input
               type="date"
               value={endDate}
@@ -158,20 +160,20 @@ export default function ReportsPage() {
       )}
 
       {loading ? (
-        <div className="glass-card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Loading analytics data...</div>
+        <div className="glass-card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>{t('reports.loading')}</div>
       ) : error ? (
         <div className="glass-card" style={{ padding: 24, background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.2)', color: 'var(--status-nogo)' }}>
-          {error.includes('Offline') ? 'No cached data available for this period.' : error}
+          {error.includes('Offline') ? t('reports.offlineNoCached') : error}
         </div>
       ) : chartData.length === 0 ? (
-        <div className="glass-card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Select dates or refresh coordinates to view historical reports.</div>
+        <div className="glass-card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>{t('reports.selectDates')}</div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: 20 }}>
           
           {/* Temperature Chart */}
           <div className="glass-card" style={{ padding: 20 }}>
             <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Thermometer size={16} color="var(--accent-blue)" /> Temperature Trend
+              <Thermometer size={16} color="var(--accent-blue)" /> {t('reports.tempTrend')}
             </h3>
             {hasData('temperature') ? (
               <ResponsiveContainer width="100%" height={220}>
@@ -195,7 +197,7 @@ export default function ReportsPage() {
           {/* Wind Speed Chart */}
           <div className="glass-card" style={{ padding: 20 }}>
             <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Wind size={16} color="var(--accent-blue)" /> Wind Speed
+              <Wind size={16} color="var(--accent-blue)" /> {t('reports.windSpeed')}
             </h3>
             {hasData('windSpeed') ? (
               <ResponsiveContainer width="100%" height={220}>
@@ -213,7 +215,7 @@ export default function ReportsPage() {
           {/* Wave Height Chart */}
           <div className="glass-card" style={{ padding: 20 }}>
             <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Waves size={16} color="var(--accent-blue)" /> Wave Height
+              <Waves size={16} color="var(--accent-blue)" /> {t('reports.waveHeight')}
             </h3>
             {hasData('waveHeight') ? (
               <ResponsiveContainer width="100%" height={220}>
@@ -237,7 +239,7 @@ export default function ReportsPage() {
           {/* Precipitation Chart */}
           <div className="glass-card" style={{ padding: 20 }}>
             <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <CloudRain size={16} color="var(--accent-blue)" /> Precipitation
+              <CloudRain size={16} color="var(--accent-blue)" /> {t('reports.precipitation')}
             </h3>
             {hasData('precipitation') ? (
               <ResponsiveContainer width="100%" height={220}>
@@ -255,7 +257,7 @@ export default function ReportsPage() {
           {/* Sea Surface Temperature (SST) Chart */}
           <div className="glass-card" style={{ padding: 20 }}>
             <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Thermometer size={16} color="var(--accent-blue)" /> Sea Surface Temperature (SST) Trend
+              <Thermometer size={16} color="var(--accent-blue)" /> {t('reports.sstTrend')}
             </h3>
             {hasData('sst') ? (
               <ResponsiveContainer width="100%" height={220}>
@@ -273,7 +275,7 @@ export default function ReportsPage() {
           {/* Chlorophyll Trend Chart */}
           <div className="glass-card" style={{ padding: 20 }}>
             <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <TrendingUp size={16} color="var(--accent-blue)" /> Chlorophyll Level Trend
+              <TrendingUp size={16} color="var(--accent-blue)" /> {t('reports.chlorophyllTrend')}
             </h3>
             {hasData('chlorophyll') ? (
               <ResponsiveContainer width="100%" height={220}>
@@ -291,7 +293,7 @@ export default function ReportsPage() {
           {/* Risk Level Chart */}
           <div className="glass-card" style={{ padding: 20, gridColumn: 'span 2' }}>
             <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <AlertTriangle size={16} color="var(--status-caution)" /> Navigation Risk Rating Over Time
+              <AlertTriangle size={16} color="var(--status-caution)" /> {t('reports.riskRating')}
             </h3>
             <ResponsiveContainer width="100%" height={220}>
               <AreaChart data={chartData}>
@@ -313,15 +315,15 @@ export default function ReportsPage() {
                 />
                 <Tooltip
                   contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
-                  formatter={(val: any) => [val === 1 ? 'GO (Low Risk)' : val === 2 ? 'CAUTION (Moderate)' : 'NO-GO (Severe Hazard)', 'Risk Level']}
+                  formatter={(val: any) => [val === 1 ? t('reports.goLowRisk') : val === 2 ? t('reports.cautionModerate') : t('reports.noGoSevere'), t('reports.riskLevel')]}
                 />
                 <Area type="step" dataKey="riskScore" stroke="#f59e0b" strokeWidth={2} fillOpacity={1} fill="url(#riskGradient)" />
               </AreaChart>
             </ResponsiveContainer>
             <div style={{ marginTop: 12, display: 'flex', gap: 16, justifyContent: 'center', fontSize: 11, color: 'var(--text-muted)' }}>
-              <span>🟢 GO: Wind &lt; 18km/h &amp; Waves &lt; 1.2m</span>
-              <span>🟡 CAUTION: Wind 18-25km/h or Waves 1.2-2.0m</span>
-              <span>🔴 NO-GO: Wind &gt; 25km/h or Waves &gt; 2.0m</span>
+              <span>{t('reports.riskGoLegend')}</span>
+              <span>{t('reports.riskCautionLegend')}</span>
+              <span>{t('reports.riskNoGoLegend')}</span>
             </div>
           </div>
 

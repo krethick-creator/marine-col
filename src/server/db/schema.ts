@@ -6,7 +6,7 @@ export const users = pgTable('users', {
   email: text('email').notNull().unique(),
   password: text('password').notNull(),
   name: text('name').notNull(),
-  role: text('role').notNull().default('general'),
+  role: text('role').notNull().default('fisher'),
   language: text('language').notNull().default('en'),
   // Store a default/home location as PostGIS point
   location: geometry('location', { type: 'point', mode: 'xy', srid: 4326 }),

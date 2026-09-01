@@ -217,6 +217,141 @@ export function isInsideAnyZone(
   return { inside: false };
 }
 
+/**
+ * Determines whether a given geographic coordinate (lat, lon) is on land versus sea.
+ */
+export function isLandCoordinate(lat: number, lon: number): boolean {
+  // Sri Lanka
+  if (lat >= 5.8 && lat <= 9.9 && lon >= 79.6 && lon <= 81.9) {
+    if (lat > 8.5 && lon > 81.4) return false;
+    return true;
+  }
+
+  // Peninsular India Land Mass (8°N to 23.5°N)
+  if (lat >= 8.0 && lat <= 23.5) {
+    let eastCoastLon = 80.28;
+    if (lat < 10.0) {
+      eastCoastLon = 77.5 + (lat - 8.0) * (79.8 - 77.5) / 2.0;
+    } else if (lat < 13.08) {
+      eastCoastLon = 79.8 + (lat - 10.0) * (80.28 - 79.8) / 3.08;
+    } else if (lat < 17.7) {
+      eastCoastLon = 80.28 + (lat - 13.08) * (83.3 - 80.28) / 4.62;
+    } else {
+      eastCoastLon = 83.3 + (lat - 17.7) * (87.5 - 83.3) / 3.8;
+    }
+
+    let westCoastLon = 77.5;
+    if (lat < 15.5) {
+      westCoastLon = 77.5 - (lat - 8.0) * (77.5 - 73.8) / 7.5;
+    } else if (lat < 19.0) {
+      westCoastLon = 73.8 - (lat - 15.5) * (73.8 - 72.8) / 3.5;
+    } else {
+      westCoastLon = 72.8 - (lat - 19.0) * (72.8 - 68.5) / 4.0;
+    }
+
+    if (lon > westCoastLon + 0.04 && lon < eastCoastLon - 0.04) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Calculates a smooth offshore sea longitude along the East Coast of India.
+ */
+export function getEastCoastSafeSeaLon(lat: number): number {
+  if (lat >= 13.08) return 80.28;
+  if (lat >= 12.60) {
+    const t = (lat - 12.60) / (13.08 - 12.60);
+    return 80.24 + t * (80.28 - 80.24);
+  }
+  if (lat >= 12.00) {
+    const t = (lat - 12.00) / (12.60 - 12.00);
+    return 79.90 + t * (80.24 - 79.90);
+  }
+  if (lat >= 10.76) {
+    const t = (lat - 10.76) / (12.00 - 10.76);
+    return 79.86 + t * (79.90 - 79.86);
+  }
+  return 79.80;
+}
+
+/**
+ * Ensures that waypoints strictly follow a real sea route in open water and avoid land masses smoothly.
+ */
+export function ensureSeaRouteWaypoints(
+  startLat: number,
+  startLon: number,
+  destLat: number,
+  destLon: number,
+  rawWaypoints: LatLon[]
+): LatLon[] {
+  const dist = haversineKm([startLat, startLon], [destLat, destLon]);
+  if (dist < 15) {
+    return [[startLat, startLon], [destLat, destLon]];
+  }
+
+  // Check East Coast India (Bay of Bengal coastal corridor)
+  const isEastCoast = (startLon >= 79.2 && destLon >= 79.2 && Math.abs(startLat - destLat) > 0.25);
+  if (isEastCoast) {
+    const seaWaypoints: LatLon[] = [[startLat, startLon]];
+    const steps = Math.max(5, Math.min(12, Math.round(dist / 18)));
+    
+    for (let i = 1; i < steps; i++) {
+      const frac = i / steps;
+      const stepLat = startLat + (destLat - startLat) * frac;
+      
+      const safeSeaLon = getEastCoastSafeSeaLon(stepLat);
+      let stepLon = startLon + (destLon - startLon) * frac;
+      
+      // If linear interpolation crosses land (further west than safe sea lon), push to safeSeaLon
+      if (stepLon < safeSeaLon) {
+        stepLon = safeSeaLon;
+      }
+      
+      seaWaypoints.push([parseFloat(stepLat.toFixed(4)), parseFloat(stepLon.toFixed(4))]);
+    }
+    
+    seaWaypoints.push([destLat, destLon]);
+    return seaWaypoints;
+  }
+
+  // Check West Coast India (Arabian Sea coastal corridor)
+  const isWestCoast = (startLon <= 77.8 && destLon <= 77.8 && Math.abs(startLat - destLat) > 0.25);
+  if (isWestCoast) {
+    const seaWaypoints: LatLon[] = [[startLat, startLon]];
+    const steps = Math.max(4, Math.min(10, Math.round(dist / 25)));
+    
+    for (let i = 1; i < steps; i++) {
+      const frac = i / steps;
+      const stepLat = startLat + (destLat - startLat) * frac;
+      
+      let maxSafeSeaLon = 76.0;
+      if (stepLat >= 8.0 && stepLat <= 10.0) maxSafeSeaLon = 76.5;
+      else if (stepLat <= 13.0) maxSafeSeaLon = 74.6;
+      else if (stepLat <= 16.0) maxSafeSeaLon = 73.5;
+      else maxSafeSeaLon = 72.5;
+
+      let stepLon = startLon + (destLon - startLon) * frac;
+      if (stepLon > maxSafeSeaLon) {
+        stepLon = maxSafeSeaLon;
+      }
+      
+      seaWaypoints.push([parseFloat(stepLat.toFixed(4)), parseFloat(stepLon.toFixed(4))]);
+    }
+    
+    seaWaypoints.push([destLat, destLon]);
+    return seaWaypoints;
+  }
+
+  if (rawWaypoints && rawWaypoints.length >= 2) {
+    return rawWaypoints;
+  }
+
+  return [[startLat, startLon], [destLat, destLon]];
+}
+
 // ─── Open-Meteo Weather & Marine Forecast Retrieval ──────────────────────────
 
 /**
@@ -958,23 +1093,9 @@ export async function getSafeRoute(
     };
   }
 
-  // Construct Path Waypoints (including exact start and dest if distinct from grid nodes)
-  const rawWaypoints: LatLon[] = path.map((n) => [n.lat, n.lon]);
-  
-  // Ensure start coordinate is first waypoint
-  if (
-    rawWaypoints.length === 0 ||
-    rawWaypoints[0][0] !== startLat ||
-    rawWaypoints[0][1] !== startLon
-  ) {
-    rawWaypoints.unshift([startLat, startLon]);
-  }
-
-  // Ensure dest coordinate is last waypoint
-  const last = rawWaypoints[rawWaypoints.length - 1];
-  if (last[0] !== destLat || last[1] !== destLon) {
-    rawWaypoints.push([destLat, destLon]);
-  }
+  // Construct Path Waypoints using sea routing engine
+  let rawWaypoints: LatLon[] = path.map((n) => [n.lat, n.lon]);
+  rawWaypoints = ensureSeaRouteWaypoints(startLat, startLon, destLat, destLon, rawWaypoints);
 
   // Calculate actual route distance along waypoints
   let routeDistKm = 0;

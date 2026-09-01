@@ -7,7 +7,7 @@ import { getOceanProvider } from '../services/ocean';
 import { getAdvisoryProvider } from '../services/advisories';
 import { getGeospatialProvider } from '../services/geospatial';
 import { getSafeRoute } from './routeAgent';
-// Translation is handled directly by Groq — no external translation provider needed.
+import { mapRoleToCanonicalRole } from '../utils/role';
 
 function parseLocationsFromQuery(query: string) {
   const q = query.toLowerCase();
@@ -402,10 +402,10 @@ export const geospatialAgent = async (state: typeof OrcaState.State) => {
     console.log('[Geospatial Agent] Provider status:', status);
     console.log('[Geospatial Agent] Completed');
     const updated = markExecuted('geospatialAgent', executedSet);
-
+    
     // Merge boundaries into geospatial data
     const geospatialData = data ? { ...data, nearbyBoundaries: boundaries } : { nearInternationalBoundary: false, nearRestrictedZone: false, nearbyBoundaries: boundaries };
-
+    
     return {
       contextData: {
         geospatial: geospatialData,
@@ -658,8 +658,8 @@ function buildStructuredContext(state: typeof OrcaState.State): string {
   const locStr = location?.name
     ? `${location.name} (lat=${location.lat?.toFixed(4)}, lon=${location.lon?.toFixed(4)})`
     : location
-      ? `lat=${location.lat?.toFixed(4)}, lon=${location.lon?.toFixed(4)}`
-      : 'Unknown location';
+    ? `lat=${location.lat?.toFixed(4)}, lon=${location.lon?.toFixed(4)}`
+    : 'Unknown location';
 
   const lines: string[] = [
     `LOCATION: ${locStr}`,
@@ -740,7 +740,7 @@ function buildStructuredContext(state: typeof OrcaState.State): string {
     if (geospatial.nearbyBoundaries && geospatial.nearbyBoundaries.length > 0) {
       lines.push('Nearby Boundaries:');
       geospatial.nearbyBoundaries.forEach((b: any) => {
-        lines.push(`- ${b.name} (${b.type.replace('_', ' ')}): ${b.distanceMeters > 1000 ? (b.distanceMeters / 1000).toFixed(1) + ' km' : b.distanceMeters + ' m'} ${b.direction}. Status: ${b.status}`);
+        lines.push(`- ${b.name} (${b.type.replace('_', ' ')}): ${b.distanceMeters > 1000 ? (b.distanceMeters/1000).toFixed(1) + ' km' : b.distanceMeters + ' m'} ${b.direction}. Status: ${b.status}`);
       });
     } else if (geospatial.nearbyBoundaries) {
       lines.push('Nearby Boundaries: None found within 50km.');
@@ -765,22 +765,7 @@ export const synthesisAgent = async (state: typeof OrcaState.State) => {
 
   // ── Conversational path — no marine data report ──────────────────────────────
   if (intent === 'conversational') {
-    let roleInstructions = '';
-    const userRole = state.userRole || 'general';
-    if (userRole === 'fisherman') {
-      roleInstructions = 'You are speaking to a FISHERMAN. Use simple language. Avoid unnecessary scientific terminology.';
-    } else if (userRole === 'researcher') {
-      roleInstructions = 'You are speaking to a RESEARCHER. Use scientific terminology when explaining capabilities.';
-    } else if (userRole === 'coastal_guard') {
-      roleInstructions = 'You are speaking to a COASTAL GUARD. Use concise operational language.';
-    } else {
-      roleInstructions = 'You are speaking to a GENERAL user. Use easy language.';
-    }
-
-    const conversationalPrompt = `You are ORCA, a professional marine intelligence assistant for Indian coastal waters.
-
-ROLE INSTRUCTIONS:
-${roleInstructions}
+    const conversationalPrompt = `You are ORCA, a professional marine intelligence assistant for fishermen and marine operators in Indian coastal waters.
 
 The user sent a conversational message: "${state.query}"
 
@@ -807,62 +792,139 @@ Keep the response friendly, short, and conversational.`;
     : 'Risk assessment not performed for this query.';
 
   const locationName = state.contextData.location?.name || 'the requested location';
-
-  let roleInstructions = '';
-  const userRole = state.userRole || 'general';
-
-  if (userRole === 'fisherman') {
-    roleInstructions = 'You are speaking to a FISHERMAN. Use simple language. Avoid unnecessary scientific terminology. Do NOT give false safety guarantees.';
-  } else if (userRole === 'researcher') {
-    roleInstructions = 'You are speaking to a RESEARCHER. Use scientific terminology. Provide numerical values, units, relevant parameters, trends, comparisons, and scientific context. Do not oversimplify.';
-  } else if (userRole === 'coastal_guard') {
-    roleInstructions = 'You are speaking to a COASTAL GUARD. Use concise operational language. Prioritize severity, location, time, incident, and recommended operational attention.';
-  } else {
-    roleInstructions = 'You are speaking to a GENERAL user. Use easy language. Explain technical marine concepts when necessary.';
-  }
-
   const targetLanguage = state.contextData.language || 'en';
-  const languageNames: Record<string, string> = {
-    en: 'English', hi: 'Hindi (हिन्दी)', ta: 'Tamil (தமிழ்)', te: 'Telugu (తెలుగు)',
-    ml: 'Malayalam (മലയാളം)', mr: 'Marathi (मराठी)', gu: 'Gujarati (ગુજરાતી)',
-    kn: 'Kannada (ಕನ್ನಡ)', bn: 'Bengali (বাংলা)', or: 'Odia (ଓଡ଼ିଆ)',
+
+  const languageTranslations: Record<string, {
+    name: string;
+    instruction: string;
+    parameterHeader: string;
+    valueHeader: string;
+    unavailable: string;
+    noData: string;
+  }> = {
+    en: {
+      name: 'English',
+      instruction: 'Write your entire response in English.',
+      parameterHeader: 'Parameter',
+      valueHeader: 'Value',
+      unavailable: 'Unavailable',
+      noData: 'No data available',
+    },
+    hi: {
+      name: 'Hindi (हिन्दी)',
+      instruction: 'CRITICAL REQUIREMENT — NON-NEGOTIABLE: Write your ENTIRE response in Hindi (हिन्दी). Do NOT write English headings (such as "Weather Conditions", "Ocean Conditions", "Risk Assessment", "Recommendation", "Conclusion"). Translate all headings, subheadings, explanations, and table headers into Hindi (e.g. मौसम की स्थिति, समुद्र की स्थिति, जोखिम मूल्यांकन, सिफारिश, निष्कर्ष). Translate table headers (Parameter -> पैरामीटर, Value -> मान). Keep numbers, units (°C, km/h, m, s), and technical coordinates unchanged.',
+      parameterHeader: 'पैरामीटर',
+      valueHeader: 'मान',
+      unavailable: 'अनुपलब्ध',
+      noData: 'कोई डेटा उपलब्ध नहीं',
+    },
+    ta: {
+      name: 'Tamil (தமிழ்)',
+      instruction: 'CRITICAL REQUIREMENT — NON-NEGOTIABLE: Write your ENTIRE response in Tamil (தமிழ்). Do NOT write English headings (such as "Weather Conditions", "Ocean Conditions", "Risk Assessment", "Recommendation", "Conclusion"). Translate all headings, subheadings, explanations, and table headers into Tamil (e.g. வானிலை நிலை, கடல் நிலை, ஆபத்து மதிப்பீடு, பரிந்துரை, முடிவு). Translate table headers (Parameter -> அளவுரு, Value -> மதிப்பு). Keep numbers, units (°C, km/h, m, s), and technical coordinates unchanged.',
+      parameterHeader: 'அளவுரு',
+      valueHeader: 'மதிப்பு',
+      unavailable: 'கிடைக்கவில்லை',
+      noData: 'தரவு எதுவும் கிடைக்கவில்லை',
+    },
+    te: {
+      name: 'Telugu (తెలుగు)',
+      instruction: 'CRITICAL REQUIREMENT — NON-NEGOTIABLE: Write your ENTIRE response in Telugu (తెలుగు). Do NOT write English headings (such as "Weather Conditions", "Ocean Conditions", "Risk Assessment", "Recommendation", "Conclusion"). Translate all headings, subheadings, explanations, and table headers into Telugu (e.g. వాతావరణ సమాచారం, సముద్ర స్థితి, ప్రమాద అంచనా, సిఫార్సు, ముగింపు). Translate table headers (Parameter -> పరామితి, Value -> విలువ). Keep numbers, units (°C, km/h, m, s), and technical coordinates unchanged.',
+      parameterHeader: 'పరామితి',
+      valueHeader: 'విలువ',
+      unavailable: 'లభ్యం కాలేదు',
+      noData: 'డేటా అందుబాటులో లేదు',
+    },
+    ml: {
+      name: 'Malayalam (മലയാളം)',
+      instruction: 'CRITICAL REQUIREMENT — NON-NEGOTIABLE: Write your ENTIRE response in Malayalam (മലയാളം). Do NOT write English headings (such as "Weather Conditions", "Ocean Conditions", "Risk Assessment", "Recommendation", "Conclusion"). Translate all headings, subheadings, explanations, and table headers into Malayalam (e.g. കാലാവസ്ഥ നില, സമുദ്ര നില, അപകടസാധ്യത വിലയിരുത്തൽ, ശുപാർശ, ഉപസംഹാരം). Translate table headers (Parameter -> ഘടകം, Value -> മൂല്യം). Keep numbers, units (°C, km/h, m, s), and technical coordinates unchanged.',
+      parameterHeader: 'ഘടകം',
+      valueHeader: 'മൂല്യം',
+      unavailable: 'ലഭ്യമല്ല',
+      noData: 'വിവരങ്ങൾ ലഭ്യമല്ല',
+    },
+    mr: {
+      name: 'Marathi (मराठी)',
+      instruction: 'CRITICAL REQUIREMENT — NON-NEGOTIABLE: Write your ENTIRE response in Marathi (मराठी). Do NOT write English headings (such as "Weather Conditions", "Ocean Conditions", "Risk Assessment", "Recommendation", "Conclusion"). Translate all headings, subheadings, explanations, and table headers into Marathi (e.g. हवामान स्थिती, समुद्र स्थिती, धोका मूल्यमापन, शिफारस, निष्कर्ष). Translate table headers (Parameter -> घटक, Value -> मूल्य). Keep numbers, units (°C, km/h, m, s), and technical coordinates unchanged.',
+      parameterHeader: 'घटक',
+      valueHeader: 'मूल्य',
+      unavailable: 'अनुपलब्ध',
+      noData: 'माहिती उपलब्ध नाही',
+    },
+    gu: {
+      name: 'Gujarati (ગુજરાતી)',
+      instruction: 'CRITICAL REQUIREMENT — NON-NEGOTIABLE: Write your ENTIRE response in Gujarati (ગુજરાતી). Do NOT write English headings (such as "Weather Conditions", "Ocean Conditions", "Risk Assessment", "Recommendation", "Conclusion"). Translate all headings, subheadings, explanations, and table headers into Gujarati (e.g. હવામાન સ્થિતિ, દરિયાઈ સ્થિતિ, જોખમ મૂલ્યાંકન, ભલામણ, નિષ્કર્ષ). Translate table headers (Parameter -> પેરામીટર, Value -> મૂલ્ય). Keep numbers, units (°C, km/h, m, s), and technical coordinates unchanged.',
+      parameterHeader: 'પેરામીટર',
+      valueHeader: 'મૂલ્ય',
+      unavailable: 'અપ્રાપ્ય',
+      noData: 'ડેટા ઉપલબ્ધ નથી',
+    },
+    kn: {
+      name: 'Kannada (ಕನ್ನಡ)',
+      instruction: 'CRITICAL REQUIREMENT — NON-NEGOTIABLE: Write your ENTIRE response in Kannada (ಕನ್ನಡ). Do NOT write English headings (such as "Weather Conditions", "Ocean Conditions", "Risk Assessment", "Recommendation", "Conclusion"). Translate all headings, subheadings, explanations, and table headers into Kannada (e.g. ಹವಾಮಾನ ಸ್ಥಿತಿ, ಸಮುದ್ರ ಸ್ಥಿತಿ, ಅಪಾಯದ ಮೌಲ್ಯಮಾಪನ, ಶಿಫಾರಸು, ತೀರ್ಮಾನ). Translate table headers (Parameter -> ನಿಯತಾಂಕ, Value -> ಮೌಲ್ಯ). Keep numbers, units (°C, km/h, m, s), and technical coordinates unchanged.',
+      parameterHeader: 'ನಿಯತಾಂಕ',
+      valueHeader: 'ಮೌಲ್ಯ',
+      unavailable: 'ಲಭ್ಯವಿಲ್ಲ',
+      noData: 'ಮಾಹಿತಿ ಲಭ್ಯವಿಲ್ಲ',
+    },
+    bn: {
+      name: 'Bengali (বাংলা)',
+      instruction: 'CRITICAL REQUIREMENT — NON-NEGOTIABLE: Write your ENTIRE response in Bengali (বাংলা). Do NOT write English headings (such as "Weather Conditions", "Ocean Conditions", "Risk Assessment", "Recommendation", "Conclusion"). Translate all headings, subheadings, explanations, and table headers into Bengali (e.g. আবহাওয়ার পরিস্থিতি, সামুদ্রিক পরিস্থিতি, ঝুঁকি মূল্যায়ন, সুপারিশ, উপসংহার). Translate table headers (Parameter -> প্যারামিটার, Value -> মান). Keep numbers, units (°C, km/h, m, s), and technical coordinates unchanged.',
+      parameterHeader: 'প্যারামিটার',
+      valueHeader: 'মান',
+      unavailable: 'অনুপলব্ধ',
+      noData: 'কোন তথ্য নেই',
+    },
+    or: {
+      name: 'Odia (ଓଡ଼ିଆ)',
+      instruction: 'CRITICAL REQUIREMENT — NON-NEGOTIABLE: Write your ENTIRE response in Odia (ଓଡ଼ିଆ). Do NOT write English headings (such as "Weather Conditions", "Ocean Conditions", "Risk Assessment", "Recommendation", "Conclusion"). Translate all headings, subheadings, explanations, and table headers into Odia (e.g. ପାଣିପାଗ ସ୍ଥିତି, ସମୁଦ୍ର ସ୍ଥିତି, ବିପଦ ଆକଳନ, ସୁପାରିଶ, ନିଷ୍କର୍ଷ). Translate table headers (Parameter -> ପାରାମିଟର, Value -> ମୂଲ୍ୟ). Keep numbers, units (°C, km/h, m, s), and technical coordinates unchanged.',
+      parameterHeader: 'ପାରାମିଟର',
+      valueHeader: 'ମୂଲ୍ୟ',
+      unavailable: 'ଅନୁପଲବ୍ଧ',
+      noData: 'ତଥ୍ୟ ଉପଲବ୍ଧ ନାହିଁ',
+    },
   };
-  const languageName = languageNames[targetLanguage] || `language code "${targetLanguage}"`;
 
-  const languageInstruction = targetLanguage === 'en'
-    ? 'Write your entire response in English.'
-    : `LANGUAGE REQUIREMENT — THIS IS NON-NEGOTIABLE:
-You MUST write your ENTIRE response in ${languageName}.
-Every single word must be in ${languageName}.
-This includes:
-- The title and all headings
-- Every Markdown table header and every table cell label
-- All explanatory paragraphs
-- All recommendations and safety advice
-- All warnings and disclaimers
-- All evidence and reasoning bullet points
-- All summaries
-- Status descriptions
-Do NOT mix English words into the response.
-Do NOT leave any heading, label, or column name in English.
-Preserve all numbers, units, coordinates, and scientific values exactly as they appear in the context data.`;
+  const langConfig = languageTranslations[targetLanguage] || languageTranslations.en;
+  const userRole = mapRoleToCanonicalRole(state.contextData?.role);
 
-  const prompt = `You are the ORCA Synthesis Agent. Provide a clear, professional, concise markdown response.
+  const roleInstructions: Record<string, string> = {
+    fisherman: `USER ROLE: FISHERMAN
+- Provide practical, direct, and actionable marine advice focusing on fishing decisions, safety, sea state, wave height, wind, alerts, boundaries, and safe return times.
+- Avoid unnecessary scientific jargon. Explain any technical metrics simply (e.g. "Waves are around 1.8 m, so the sea may be rough for a small boat.").`,
 
-ROLE INSTRUCTIONS:
-${roleInstructions}
-${languageInstruction}
+    researcher: `USER ROLE: MARINE RESEARCHER
+- Provide detailed oceanographic and scientific analytical insight.
+- Emphasize numerical precision, exact units (°C, km/h, m, s), SST, Chlorophyll-a concentration, swell periods, climatological trends, data timestamps, and data sources.
+- Do not simplify scientific values or oceanographic terminology unnecessarily.`,
 
-STRICT DATA RULES:
+    coastal_guard: `USER ROLE: COASTAL GUARD
+- Use professional operational maritime language focusing on situational awareness, exact location coordinates, distances (km), directions/bearings, boundary clearances, active alert statuses, and operational risk ratings.
+- If any requested metric or boundary status is unavailable, explicitly state "${langConfig.unavailable}" or "${langConfig.noData}". Do not guess.`,
+
+    general: `USER ROLE: GENERAL USER
+- Provide a clear, balanced, easy-to-understand summary of marine weather and safety conditions.
+- Explain technical values in simple language without overwhelming terminology.`
+  };
+
+  const roleInstruction = roleInstructions[userRole] || roleInstructions.general;
+
+  const prompt = `You are the ORCA Synthesis Agent. Provide a clear, professional, concise markdown response tailored to the user's role and language.
+
+${langConfig.instruction}
+
+${roleInstruction}
+
+STRICT FORMATTING RULES:
 1. Use ONLY the data provided in the Structured Context below. Do NOT hallucinate or invent values.
-2. NEVER use "-" as a placeholder. If a value is unavailable, write the localized equivalent of "Unavailable".
-3. NEVER use a "Units / Notes" column in tables — only use two columns: the localized parameter name and its value.
-4. The value for each row must be the actual data value (e.g., "26.9 °C", "78%").
+2. NEVER use "-" as a placeholder. If a value is unavailable, write "${langConfig.unavailable}" or "${langConfig.noData}".
+3. NEVER use a "Units / Notes" column in tables — only use "${langConfig.parameterHeader}" and "${langConfig.valueHeader}" as the table column headers.
+4. The value for each row must be the actual data value (e.g., "26.9 °C", "78%", "${langConfig.unavailable}").
 5. Do NOT create empty rows or rows with only dashes.
-6. Do NOT override or modify the Risk Assessment level — it is deterministic.
-7. Use exact numbers from the context. Do not round or estimate differently.
+6. Do NOT override or modify the Risk Assessment level (GO / CAUTION / NO-GO) — it is deterministic.
+7. Use exact numbers from the context. Do not round or estimate differently. Keep numerical values, units (°C, km/h, m, s), coordinates, and proper technical symbols in standard numbers.
 8. Location to use: ${locationName}
 9. Only include sections for data that was actually requested/fetched. If satellite data was not requested, do not include a Satellite section.
+10. ALL headings, subheadings, explanations, table headers, and parameter names MUST be written in ${langConfig.name}. Absolutely NO English headings (like "Weather Conditions", "Ocean Conditions", "Risk Assessment", "Recommendation", "Conclusion") are allowed in non-English responses.
 
 Risk Assessment (DO NOT OVERRIDE):
 ${riskDump}
@@ -872,16 +934,12 @@ ${structuredContext}
 
 User Query: "${state.query}"
 
-Provide a professional markdown response covering the relevant data and the risk recommendation.
-Remember: WRITE THE ENTIRE RESPONSE IN ${languageName.toUpperCase()}.`;
+Provide a professional markdown response in ${langConfig.name} covering the relevant data and the risk recommendation.`;
 
   const response = await groqModelRouter.invoke([new SystemMessage(prompt)], 'synthesis');
-  const finalResponse = response.response;
-
-  console.log(`[Synthesis Agent] Response language: ${targetLanguage}`);
 
   return {
-    finalResponse: finalResponse,
+    finalResponse: response.response,
     responseLanguage: targetLanguage,
     translationFailed: false,
     executedSteps: ['synthesisAgent']

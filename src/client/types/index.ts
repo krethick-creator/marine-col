@@ -143,6 +143,8 @@ export interface FishingZone {
   recommendation: StatusLevel
   reasons: string[]
   isMockData: boolean
+  dataSource?: string
+  issuedAt?: Date
 }
 
 export interface OceanSnapshot {
@@ -218,12 +220,13 @@ export interface TimeSlot {
 
 // ─── Community ────────────────────────────────────────────────────────
 
-export type PostType = 'OBSERVATION' | 'CONDITION_REPORT' | 'ZONE_REPORT' | 'DANGER_REPORT'
+export type PostType = 'OBSERVATION' | 'CONDITION_REPORT' | 'ZONE_REPORT' | 'DANGER_REPORT' | 'OTHER'
 
 export interface CommunityPost {
   id: string
   userId: string
   userName: string
+  userRole?: string
   postType: PostType
   title: string
   content: string
@@ -232,8 +235,8 @@ export interface CommunityPost {
   images?: string[]
   reactions: { like: number; helpful: number; verify: number }
   commentsCount: number
-  createdAt: Date
-  isOfficial: false   // community posts are NEVER official
+  createdAt: Date | string
+  isOfficial: boolean   // official vs community reports
   isVerified: boolean // verified by moderator, not official
 }
 
@@ -242,7 +245,7 @@ export interface CommunityPost {
 export interface UserProfile {
   id: string
   name: string
-  role: 'FISHERMAN' | 'OFFICIAL' | 'RESEARCHER' | 'ADMIN'
+  role: string
   location?: LatLon
   locationName?: string
   language: string

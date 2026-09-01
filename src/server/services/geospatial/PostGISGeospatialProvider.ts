@@ -134,7 +134,7 @@ export class PostGISGeospatialProvider implements GeospatialProvider {
         ST_Contains(f.geometry, u.geom) OR ST_Intersects(f.geometry, u.geom) AS inside,
         ST_AsGeoJSON(f.geometry) AS geojson
       FROM all_features f, user_loc u
-      WHERE ST_DWithin(f.geometry::geography, u.geog, 50000)
+      WHERE ST_DWithin(f.geometry::geography, u.geog, 500000)
       ORDER BY distance_meters ASC
       LIMIT 20;
     `;

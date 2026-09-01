@@ -13,19 +13,39 @@ declare global {
   }
 }
 
+function extractToken(req: Request): string | undefined {
+  const header = req.headers.authorization
+  if (header?.startsWith('Bearer ')) {
+    return header.slice(7)
+  }
+
+  const cookieHeader = req.headers.cookie
+  if (!cookieHeader) return undefined
+  const match = cookieHeader.match(/(?:^|;\s*)(?:token|orca_token)=([^;]+)/)
+  return match ? decodeURIComponent(match[1]) : undefined
+}
+
+function decodePayload(token: string): JWTPayload {
+  const payload = jwt.verify(token, env.jwtSecret) as JWTPayload & { sub?: string }
+  const userId = typeof payload.userId !== 'undefined' ? String(payload.userId) : String(payload.sub ?? '')
+  if (!userId) {
+    throw new AppError(401, 'Invalid or expired token', 'AUTH_INVALID')
+  }
+  return { ...payload, userId }
+}
+
 // ─── Require auth ─────────────────────────────────────────────────────
 export function requireAuth(req: Request, _res: Response, next: NextFunction): void {
-  const header = req.headers.authorization
-  if (!header?.startsWith('Bearer ')) {
+  const token = extractToken(req)
+  if (!token) {
     throw new AppError(401, 'Authentication required', 'AUTH_REQUIRED')
   }
 
-  const token = header.slice(7)
   try {
-    const payload = jwt.verify(token, env.jwtSecret) as JWTPayload
-    req.user = payload
+    req.user = decodePayload(token)
     next()
-  } catch {
+  } catch (err) {
+    if (err instanceof AppError) throw err
     throw new AppError(401, 'Invalid or expired token', 'AUTH_INVALID')
   }
 }
@@ -33,11 +53,10 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction): v
 // ─── Optional auth ────────────────────────────────────────────────────
 // Attaches user if token is present; continues without error if not.
 export function optionalAuth(req: Request, _res: Response, next: NextFunction): void {
-  const header = req.headers.authorization
-  if (header?.startsWith('Bearer ')) {
+  const token = extractToken(req)
+  if (token) {
     try {
-      const token = header.slice(7)
-      req.user = jwt.verify(token, env.jwtSecret) as JWTPayload
+      req.user = decodePayload(token)
     } catch {
       // Ignore invalid tokens for optional auth
     }

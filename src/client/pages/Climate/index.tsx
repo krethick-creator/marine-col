@@ -15,6 +15,7 @@ import {
   Legend
 } from 'recharts'
 import { useAppStore } from '../../store'
+import { useTranslation } from '../../locales'
 import DataStatusBadge from '../../components/ui/DataStatusBadge'
 
 interface MonthlyClimatology {
@@ -31,6 +32,7 @@ const MONTH_NAMES = [
 ]
 
 export default function ClimatePage() {
+  const { t } = useTranslation()
   const { user } = useAppStore()
   const [climatology, setClimatology] = useState<MonthlyClimatology[]>([])
   const [loading, setLoading] = useState(false)
@@ -145,9 +147,9 @@ export default function ClimatePage() {
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Compass size={24} color="var(--accent-blue)" /> Climate Patterns
+            <Compass size={24} color="var(--accent-blue)" /> {t('climate.title')}
           </h1>
-          <p className="page-subtitle">Long-term seasonal climatology and historical cycles for {user?.locationName || 'your region'}</p>
+          <p className="page-subtitle">{t('climate.subtitle')} {user?.locationName || t('climate.yourRegion')}</p>
         </div>
         {stats && (
           <DataStatusBadge isCached={(stats as any).isCached} fetchedAt={(stats as any).fetchedAt} />
@@ -158,13 +160,12 @@ export default function ClimatePage() {
       <div className="glass-card" style={{ padding: 18, marginBottom: 24, display: 'flex', gap: 12, borderLeft: '3px solid var(--accent-blue)', alignItems: 'center' }}>
         <Info size={20} color="var(--accent-blue)" style={{ flexShrink: 0 }} />
         <div style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--text-light)' }}>
-          <strong>Climatology Notice:</strong> Weather represents short-term changes in the atmosphere (e.g. today's rain, tomorrow's storm). 
-          <strong> Climate</strong> represents the long-term averages and patterns observed over years. The seasonal graphs below reflect real aggregated historical values for this specific coordinates from the past year.
+          <strong>{t('climate.noticeTitle')}</strong> {t('climate.noticeText')}
         </div>
       </div>
 
       {loading ? (
-        <div className="glass-card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Analyzing historical climatology data...</div>
+        <div className="glass-card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>{t('climate.loading')}</div>
       ) : error ? (
         <div className="glass-card" style={{ padding: 24, background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.2)', color: 'var(--status-nogo)', display: 'flex', gap: 10, alignItems: 'center' }}>
           <AlertCircle size={20} />
@@ -176,25 +177,25 @@ export default function ClimatePage() {
           {stats && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
               <div className="glass" style={{ padding: 16, borderRadius: 12 }}>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Hottest Month</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>{t('climate.hottestMonth')}</div>
                 <div style={{ fontSize: 18, fontWeight: 700, marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Thermometer size={16} color="#ef4444" /> {stats.hottestMonth}
                 </div>
               </div>
               <div className="glass" style={{ padding: 16, borderRadius: 12 }}>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Wettest Month</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>{t('climate.wettestMonth')}</div>
                 <div style={{ fontSize: 18, fontWeight: 700, marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
                   <CloudSun size={16} color="#3b82f6" /> {stats.wettestMonth}
                 </div>
               </div>
               <div className="glass" style={{ padding: 16, borderRadius: 12 }}>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Windiest Month</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>{t('climate.windiestMonth')}</div>
                 <div style={{ fontSize: 18, fontWeight: 700, marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Wind size={16} color="#10b981" /> {stats.windiestMonth}
                 </div>
               </div>
               <div className="glass" style={{ padding: 16, borderRadius: 12 }}>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Total Annual Rainfall</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>{t('climate.annualRainfall')}</div>
                 <div style={{ fontSize: 18, fontWeight: 700, marginTop: 6 }}>
                   💧 {stats.annualRainfall} mm
                 </div>
@@ -208,7 +209,7 @@ export default function ClimatePage() {
             {/* Seasonal Temperature Cycles */}
             <div className="glass-card" style={{ padding: 20 }}>
               <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Thermometer size={16} color="var(--accent-blue)" /> Seasonal Temperature Cycles (2025)
+                <Thermometer size={16} color="var(--accent-blue)" /> {t('climate.tempCycles')}
               </h3>
               <ResponsiveContainer width="100%" height={250}>
                 <AreaChart data={climatology}>
@@ -236,7 +237,7 @@ export default function ClimatePage() {
             {/* Monthly Precipitation (Rainfall) */}
             <div className="glass-card" style={{ padding: 20 }}>
               <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                💧 Monthly Precipitation (Rainfall) Cycles
+                💧 {t('climate.precipCycles')}
               </h3>
               <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={climatology}>
@@ -252,7 +253,7 @@ export default function ClimatePage() {
             {/* Wind Climatological Averages */}
             <div className="glass-card" style={{ padding: 20, gridColumn: 'span 2' }}>
               <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Wind size={16} color="var(--accent-blue)" /> Wind Climatological Seasonal Cycle
+                <Wind size={16} color="var(--accent-blue)" /> {t('climate.windCycles')}
               </h3>
               <ResponsiveContainer width="100%" height={250}>
                 <LineChart data={climatology}>

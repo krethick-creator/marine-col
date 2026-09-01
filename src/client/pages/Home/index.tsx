@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Plus, Mic, Brain, Send } from 'lucide-react'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { Plus, Mic, Send, Image as ImageIcon, Calendar, Waves, Satellite, Fish, AlertTriangle, MapPin } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import AgentTrace from '../../components/chat/AgentTrace'
@@ -10,39 +11,184 @@ import {
   getMockResponseForQuery,
 } from '../../services/mockProviders/mockData'
 import { useChatStore, useAppStore } from '../../store'
+import { useAuthStore } from '../../store/authStore'
 import type { ChatMessage, AgentTraceStep } from '../../types'
 import { useTranslation } from '../../locales'
+import { mapRoleToCanonicalRole, ROLE_CONFIGS } from '../../config/roleConfig'
 
 // ─── Simulated agent processing delay ─────────────────────────────────
 const AGENT_STEP_DELAY_MS = 600
 
 export default function HomePage() {
+  const navigate = useNavigate()
   const { messages, addMessage, updateMessage, isLoading, setLoading, setAgentIndex } = useChatStore()
   const [input, setInput] = useState('')
   const [agentSteps, setAgentSteps] = useState<AgentTraceStep[]>([])
   const [localAgentIndex, setLocalAgentIndex] = useState(-1)
+  const [plusMenuOpen, setPlusMenuOpen] = useState(false)
+  const [isListening, setIsListening] = useState(false)
+  const [isTranscribing, setIsTranscribing] = useState(false)
+  const [speechError, setSpeechError] = useState<string | null>(null)
+  
   const { t } = useTranslation()
-
+  const locationState = useLocation()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const plusMenuRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const recognitionRef = useRef<any>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef = useRef<Blob[]>([])
+  
   const hasMessages = messages.length > 0
+  const { user: authUser } = useAuthStore()
+  const { user } = useAppStore()
+  const rawRole = authUser?.role || (user as any)?.role
+  const canonicalRole = mapRoleToCanonicalRole(rawRole)
+  const roleConfig = ROLE_CONFIGS[canonicalRole]
 
-  // Auto-scroll
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, localAgentIndex])
+  const startMediaRecorder = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mediaRecorder = new MediaRecorder(stream)
+      mediaRecorderRef.current = mediaRecorder
+      audioChunksRef.current = []
 
-  // Auto-resize textarea
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInput(e.target.value)
-    const ta = textareaRef.current
-    if (ta) {
-      ta.style.height = 'auto'
-      ta.style.height = Math.min(ta.scrollHeight, 160) + 'px'
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          audioChunksRef.current.push(e.data)
+        }
+      }
+
+      mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach(track => track.stop())
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
+        if (audioBlob.size < 500) {
+          setIsListening(false)
+          return
+        }
+
+        setIsTranscribing(true)
+        const reader = new FileReader()
+        reader.readAsDataURL(audioBlob)
+        reader.onloadend = async () => {
+          const base64Audio = reader.result as string
+          try {
+            const res = await fetch('/api/chat/transcribe', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ audio: base64Audio, language: user?.language || 'en' }),
+            })
+            const data = await res.json()
+            if (data.ok && data.text) {
+              setInput(data.text)
+              if (textareaRef.current) {
+                textareaRef.current.style.height = 'auto'
+                textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 160) + 'px'
+              }
+            } else {
+              setSpeechError('Failed to transcribe audio. Please try again.')
+              setTimeout(() => setSpeechError(null), 4000)
+            }
+          } catch (err) {
+            setSpeechError('Network error transcribing audio.')
+            setTimeout(() => setSpeechError(null), 4000)
+          } finally {
+            setIsTranscribing(false)
+            setIsListening(false)
+          }
+        }
+      }
+
+      mediaRecorder.start()
+      setIsListening(true)
+      setSpeechError(null)
+    } catch (err: any) {
+      console.error('MediaRecorder error:', err)
+      setSpeechError('Microphone access denied or unavailable.')
+      setIsListening(false)
+      setTimeout(() => setSpeechError(null), 4000)
     }
   }
 
-  const { user } = useAppStore() // Assuming this is where location is stored
+  const toggleSpeechRecognition = useCallback(() => {
+    if (isListening) {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        mediaRecorderRef.current.stop()
+      } else if (recognitionRef.current) {
+        try { recognitionRef.current.stop() } catch (e) {}
+      }
+      setIsListening(false)
+      return
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (!SpeechRecognition) {
+      startMediaRecorder()
+      return
+    }
+
+    try {
+      const recognition = new SpeechRecognition()
+      recognition.continuous = false
+      recognition.interimResults = true
+
+      const langMap: Record<string, string> = {
+        en: 'en-IN',
+        ta: 'ta-IN',
+        hi: 'hi-IN',
+        te: 'te-IN',
+        ml: 'ml-IN',
+        kn: 'kn-IN',
+      }
+      recognition.lang = langMap[user?.language || 'en'] || 'en-IN'
+
+      recognition.onstart = () => {
+        setIsListening(true)
+        setSpeechError(null)
+      }
+
+      recognition.onresult = (event: any) => {
+        let currentTranscript = ''
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          currentTranscript += event.results[i][0].transcript
+        }
+        if (currentTranscript.trim()) {
+          setInput(currentTranscript)
+          if (textareaRef.current) {
+            textareaRef.current.style.height = 'auto'
+            textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 160) + 'px'
+          }
+        }
+      }
+
+      recognition.onerror = (event: any) => {
+        console.warn('Speech recognition error, trying MediaRecorder fallback:', event.error)
+        if (event.error === 'network' || event.error === 'service-not-allowed' || event.error === 'not-allowed') {
+          // Seamless fallback to browser MediaRecorder + Groq Whisper
+          startMediaRecorder()
+        } else if (event.error !== 'no-speech' && event.error !== 'aborted') {
+          setSpeechError(`Speech error: ${event.error}`)
+          setIsListening(false)
+          setTimeout(() => setSpeechError(null), 4000)
+        } else {
+          setIsListening(false)
+        }
+      }
+
+      recognition.onend = () => {
+        if (!mediaRecorderRef.current || mediaRecorderRef.current.state !== 'recording') {
+          setIsListening(false)
+        }
+      }
+
+      recognitionRef.current = recognition
+      recognition.start()
+    } catch (err: any) {
+      console.warn('SpeechRecognition failed to start, using MediaRecorder fallback:', err)
+      startMediaRecorder()
+    }
+  }, [isListening, user?.language])
 
   const translateSeaState = (seaState: string | undefined): string => {
     if (!seaState) return t('data.unknown')
@@ -81,8 +227,9 @@ export default function HomePage() {
     addMessage({
       id: traceId,
       role: 'assistant',
-      content: '', // Pending until synthesis finishes
+      content: '__AGENT_TRACE__',
       timestamp: new Date(),
+      agentTrace: steps,
       isMockData: false,
     })
 
@@ -119,7 +266,7 @@ export default function HomePage() {
           setAgentIndex(targetIndex);
         }
       },
-      (finalResponse, riskAssessment, routePlan, providerStatuses) => {
+      (finalResponse: any, riskAssessment: any, routePlan: any, providerStatuses: any) => {
         setLocalAgentIndex(steps.length);
         setAgentIndex(steps.length);
         
@@ -146,7 +293,7 @@ export default function HomePage() {
               satellite: translateProviderStatus(providerStatuses?.satellite?.status),
               updatedAt: new Date()
             },
-            isMockData: Object.values(providerStatuses || {}).some((p) => p.status === 'MOCK_DATA')
+            isMockData: Object.values(providerStatuses || {}).some((p: any) => p.status === 'MOCK_DATA')
           }
         }
 
@@ -162,7 +309,7 @@ export default function HomePage() {
         setAgentIndex(-1);
         setAgentSteps([]);
       },
-      (err) => {
+      (err: any) => {
         updateMessage(traceId, {
           content: `Sorry, I encountered an error: ${err}`,
           isMockData: false,
@@ -204,10 +351,46 @@ export default function HomePage() {
     }
   }
 
-  const handleSuggestion = (s: string) => {
-    setInput(s)
-    textareaRef.current?.focus()
+  // Auto-scroll
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, localAgentIndex])
+
+  // Auto-resize textarea
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value)
+    const ta = textareaRef.current
+    if (ta) {
+      ta.style.height = 'auto'
+      ta.style.height = Math.min(ta.scrollHeight, 160) + 'px'
+    }
   }
+
+  // Close plus menu on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (plusMenuRef.current && !plusMenuRef.current.contains(e.target as Node)) {
+        setPlusMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Handle query passed via navigate state from Dashboard
+  useEffect(() => {
+    const initialQuery = (locationState.state as any)?.initialQuery
+    if (initialQuery && typeof initialQuery === 'string' && !isLoading) {
+      addMessage({
+        id: `user-${Date.now()}`,
+        role: 'user',
+        content: initialQuery,
+        timestamp: new Date(),
+      })
+      setLoading(true)
+      simulateAgents(initialQuery)
+    }
+  }, [locationState.state])
 
   return (
     <div className={`chat-page ${!hasMessages ? 'chat-page-empty' : ''}`}>
@@ -221,9 +404,176 @@ export default function HomePage() {
       )}
 
       <div className={`chat-input-area ${!hasMessages ? 'centered-input' : ''}`}>
-        <div className="chat-input-wrapper">
-          <button className="input-plus-btn" aria-label={t('chat.attach')} title={t('chat.attach')}>
-            <Plus size={22} />
+        {!hasMessages && (
+          <div style={{ maxWidth: 640, width: '100%', margin: '0 auto 20px auto', textAlign: 'center' }}>
+            <div style={{ fontSize: 13, color: 'var(--text-light)', marginBottom: 12, fontWeight: 500 }}>
+              Suggested for <span style={{ color: roleConfig.badgeColor, fontWeight: 700 }}>{t(roleConfig.displayNameKey as any) || canonicalRole.toUpperCase()}</span>:
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
+              {roleConfig.quickActions.map((qa) => (
+                <button
+                  key={qa.id}
+                  className="glass"
+                  onClick={() => {
+                    addMessage({
+                      id: `user-${Date.now()}`,
+                      role: 'user',
+                      content: qa.query,
+                      timestamp: new Date(),
+                    })
+                    setLoading(true)
+                    simulateAgents(qa.query)
+                  }}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: 99,
+                    fontSize: 12.5,
+                    fontWeight: 500,
+                    color: 'var(--text-main)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    cursor: 'pointer',
+                    background: 'rgba(255,255,255,0.04)',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  {qa.query}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="chat-input-wrapper" style={{ position: 'relative' }}>
+          {/* Plus Quick Action Popup Menu */}
+          {plusMenuOpen && (
+            <div
+              ref={plusMenuRef}
+              style={{
+                position: 'absolute',
+                bottom: 'calc(100% + 12px)',
+                left: 0,
+                width: 230,
+                background: 'rgba(10, 20, 30, 0.92)',
+                backdropFilter: 'blur(16px)',
+                WebkitBackdropFilter: 'blur(16px)',
+                border: '1px solid rgba(45, 139, 186, 0.3)',
+                borderRadius: 14,
+                padding: '8px',
+                boxShadow: '0 12px 32px rgba(0, 0, 0, 0.6)',
+                zIndex: 100,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '2px',
+                animation: 'fadeInUp 0.2s ease-out'
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setPlusMenuOpen(false)
+                  fileInputRef.current?.click()
+                }}
+                className="plus-menu-item"
+              >
+                <ImageIcon size={18} color="#3a86ff" />
+                <span>Add Image</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setPlusMenuOpen(false)
+                  navigate('/planner')
+                }}
+                className="plus-menu-item"
+              >
+                <Calendar size={18} color="#2ecc71" />
+                <span>Plan Trip</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setPlusMenuOpen(false)
+                  navigate('/weather')
+                }}
+                className="plus-menu-item"
+              >
+                <Waves size={18} color="#00b4d8" />
+                <span>Weather & Ocean</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setPlusMenuOpen(false)
+                  navigate('/climate')
+                }}
+                className="plus-menu-item"
+              >
+                <Satellite size={18} color="#9d4edd" />
+                <span>Satellite Information</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setPlusMenuOpen(false)
+                  navigate('/fishing')
+                }}
+                className="plus-menu-item"
+              >
+                <Fish size={18} color="#ffb703" />
+                <span>Fishing Zones</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setPlusMenuOpen(false)
+                  navigate('/alerts')
+                }}
+                className="plus-menu-item"
+              >
+                <AlertTriangle size={18} color="#ff3b30" />
+                <span>Alerts & Warnings</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setPlusMenuOpen(false)
+                  useAppStore.getState().setShowLocationModal(true)
+                }}
+                className="plus-menu-item"
+              >
+                <MapPin size={18} color="#ef4444" />
+                <span>Location</span>
+              </button>
+            </div>
+          )}
+
+          <input
+            type="file"
+            ref={fileInputRef}
+            style={{ display: 'none' }}
+            accept="image/*"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (file) {
+                setInput((prev) => (prev ? `${prev} [Attached image: ${file.name}]` : `[Attached image: ${file.name}]`))
+              }
+            }}
+          />
+
+          <button 
+            type="button"
+            className="input-plus-btn" 
+            aria-label={t('chat.attach')} 
+            title={t('chat.attach')}
+            onClick={() => setPlusMenuOpen(!plusMenuOpen)}
+          >
+            <Plus size={22} style={{ transform: plusMenuOpen ? 'rotate(45deg)' : 'none', transition: 'transform 0.2s ease' }} />
           </button>
 
           <textarea
@@ -237,11 +587,72 @@ export default function HomePage() {
             disabled={isLoading}
           />
 
+          {/* Speech Error Banner */}
+          {speechError && (
+            <div 
+              onClick={() => setSpeechError(null)}
+              style={{
+                position: 'absolute',
+                bottom: 'calc(100% + 8px)',
+                right: 16,
+                background: 'rgba(239, 68, 68, 0.92)',
+                color: '#fff',
+                fontSize: 12,
+                padding: '6px 12px',
+                borderRadius: 8,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                zIndex: 100,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                cursor: 'pointer'
+              }}
+            >
+              <span>{speechError}</span>
+              <span style={{ fontSize: 14, fontWeight: 'bold', opacity: 0.8 }}>✕</span>
+            </div>
+          )}
+
+          {/* Listening / Transcribing Indicator Badge */}
+          {(isListening || isTranscribing) && (
+            <div style={{
+              position: 'absolute',
+              top: -32,
+              right: 16,
+              background: isTranscribing ? 'rgba(45, 139, 186, 0.9)' : 'rgba(239, 68, 68, 0.9)',
+              color: '#ffffff',
+              fontSize: 11,
+              fontWeight: 600,
+              padding: '4px 12px',
+              borderRadius: 12,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+              zIndex: 10
+            }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#fff', animation: 'ping 1s infinite' }} />
+              {isTranscribing 
+                ? 'Transcribing voice...' 
+                : `Recording (${user?.language?.toUpperCase() || 'EN'})...`}
+            </div>
+          )}
+
           <div className="chat-input-actions">
-            <button className="input-action-btn" aria-label={t('chat.reasoning')} title={t('chat.reasoning')}>
-              <Brain size={18} />
-            </button>
-            <button className="input-action-btn" aria-label={t('chat.voice')} title={t('chat.voice')}>
+            <button 
+              type="button"
+              className="input-action-btn" 
+              aria-label={t('chat.voice') || 'Voice Input'} 
+              title={isListening ? 'Stop Listening' : (t('chat.voice') || 'Voice Input')}
+              onClick={toggleSpeechRecognition}
+              style={{
+                background: isListening ? 'rgba(239, 68, 68, 0.25)' : undefined,
+                color: isListening ? '#ef4444' : undefined,
+                border: isListening ? '1px solid rgba(239, 68, 68, 0.5)' : undefined,
+                boxShadow: isListening ? '0 0 12px rgba(239, 68, 68, 0.5)' : undefined,
+                animation: isListening ? 'micPulse 1.5s infinite' : undefined,
+              }}
+            >
               <Mic size={18} />
             </button>
             <button

@@ -17,7 +17,6 @@ import oceanRoutes from './routes/ocean'
 import sosRoutes from './routes/sos'
 import tripRoutes from './routes/trip'
 import weatherRoutes from './routes/weather'
-import { smsRoutes } from './routes/smsGateway'
 
 import { errorHandler } from './middleware/errorHandler'
 
@@ -40,7 +39,6 @@ app.use('/api/ocean', oceanRoutes)
 app.use('/api/sos', sosRoutes)
 app.use('/api/trip', tripRoutes)
 app.use('/api/weather', weatherRoutes)
-app.use('/api/sms', smsRoutes)
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'ORCA backend' })
