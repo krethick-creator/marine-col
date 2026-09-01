@@ -1,15 +1,31 @@
 import { create } from 'zustand'
 import type { ChatMessage, UserProfile, WeatherSnapshot, Alert } from '../types'
+import { getCurrentWeather } from '../services/api/weatherService'
 
-// Helper to retrieve initial location from localStorage
+const SUPPORTED_LANGUAGES = ['en', 'hi', 'ta', 'te', 'ml', 'mr', 'gu', 'kn', 'bn', 'or']
+const getInitialLanguage = (): string => {
+  if (typeof localStorage === 'undefined') return 'en'
+  const stored = localStorage.getItem('orca_language')
+  if (stored && SUPPORTED_LANGUAGES.includes(stored)) return stored
+  return 'en'
+}
+
 const getInitialLocation = () => {
+  if (typeof localStorage === 'undefined') {
+    return {
+      location: undefined,
+      locationName: '',
+      locationDetails: { district: '', state: '', country: '' }
+    }
+  }
+
   const lat = localStorage.getItem('orca_lat')
   const lon = localStorage.getItem('orca_lon')
   const name = localStorage.getItem('orca_loc_name')
   const district = localStorage.getItem('orca_loc_district') || ''
   const state = localStorage.getItem('orca_loc_state') || ''
   const country = localStorage.getItem('orca_loc_country') || ''
-  
+
   if (lat && lon && name) {
     return {
       location: { lat: parseFloat(lat), lon: parseFloat(lon) },
@@ -17,6 +33,7 @@ const getInitialLocation = () => {
       locationDetails: { district, state, country }
     }
   }
+
   return {
     location: undefined,
     locationName: '',
@@ -26,24 +43,21 @@ const getInitialLocation = () => {
 
 const initialLoc = getInitialLocation()
 
-// ─── App Store ─────────────────────────────────────────────────────────
 interface AppStore {
-  // Navigation
   activePage: string
   setActivePage: (page: string) => void
 
-  // User
   user: UserProfile
   setUser: (user: Partial<UserProfile>) => void
 
-  // Offline mode
+  setLanguage: (lang: string) => void
+
   offlineMode: boolean
   setOfflineMode: (offline: boolean) => void
   toggleOfflineMode: () => void
   lastSyncTime: Date | null
   setLastSyncTime: (time: Date) => void
 
-  // PWA Install Prompt
   deferredPrompt: any | null
   setDeferredPrompt: (prompt: any) => void
   isInstallable: boolean
@@ -51,28 +65,23 @@ interface AppStore {
   isAppInstalled: boolean
   setIsAppInstalled: (installed: boolean) => void
 
-  // Location Selector
   showLocationModal: boolean
   setShowLocationModal: (show: boolean) => void
   locationLoading: boolean
   locationError: string | null
   setLocation: (lat: number, lon: number, name: string, district?: string, state?: string, country?: string) => void
 
-  // Weather (sidebar widget)
   currentWeather: WeatherSnapshot | null
   weatherLoading: boolean
   weatherError: string | null
   setCurrentWeather: (w: WeatherSnapshot | null) => void
   fetchWeather: (lat: number, lon: number) => Promise<void>
 
-  // Alerts badge count
   alerts: Alert[]
   setAlerts: (a: Alert[]) => void
   unreadAlertCount: number
   clearAlertBadge: () => void
 }
-
-import { getCurrentWeather } from '../services/api/weatherService'
 
 export const useAppStore = create<AppStore>((set, get) => ({
   activePage: 'home',
@@ -85,23 +94,20 @@ export const useAppStore = create<AppStore>((set, get) => ({
     locationName: initialLoc.locationName,
     location: initialLoc.location,
     locationDetails: initialLoc.locationDetails,
-    language: 'en',
+    language: getInitialLanguage(),
     offlineMode: false,
   } as any,
-  setUser: (partial) =>
-    set((s) => ({ user: { ...s.user, ...partial } })),
 
-  offlineMode: !navigator.onLine,
-  setOfflineMode: (offline) => 
-    set((s) => ({
-      offlineMode: offline,
-      user: { ...s.user, offlineMode: offline },
-    })),
-  toggleOfflineMode: () =>
-    set((s) => ({
-      offlineMode: !s.offlineMode,
-      user: { ...s.user, offlineMode: !s.offlineMode },
-    })),
+  setUser: (partial) => set((s) => ({ user: { ...s.user, ...partial } })),
+
+  setLanguage: (lang) => {
+    if (typeof localStorage !== 'undefined') localStorage.setItem('orca_language', lang)
+    set((s) => ({ user: { ...s.user, language: lang } }))
+  },
+
+  offlineMode: typeof navigator !== 'undefined' ? !navigator.onLine : false,
+  setOfflineMode: (offline) => set((s) => ({ offlineMode: offline, user: { ...s.user, offlineMode: offline } })),
+  toggleOfflineMode: () => set((s) => ({ offlineMode: !s.offlineMode, user: { ...s.user, offlineMode: !s.offlineMode } })),
   lastSyncTime: new Date(),
   setLastSyncTime: (time) => set({ lastSyncTime: time }),
 
@@ -117,13 +123,15 @@ export const useAppStore = create<AppStore>((set, get) => ({
   locationLoading: false,
   locationError: null,
   setLocation: (lat, lon, name, district = '', state = '', country = '') => {
-    localStorage.setItem('orca_lat', lat.toString())
-    localStorage.setItem('orca_lon', lon.toString())
-    localStorage.setItem('orca_loc_name', name)
-    if (district) localStorage.setItem('orca_loc_district', district)
-    if (state) localStorage.setItem('orca_loc_state', state)
-    if (country) localStorage.setItem('orca_loc_country', country)
-    
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('orca_lat', lat.toString())
+      localStorage.setItem('orca_lon', lon.toString())
+      localStorage.setItem('orca_loc_name', name)
+      if (district) localStorage.setItem('orca_loc_district', district)
+      if (state) localStorage.setItem('orca_loc_state', state)
+      if (country) localStorage.setItem('orca_loc_country', country)
+    }
+
     set((s) => ({
       user: {
         ...s.user,
@@ -134,7 +142,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       showLocationModal: false,
       locationError: null,
     }))
-    // Refetch weather immediately for the new location
     get().fetchWeather(lat, lon)
   },
 
@@ -158,11 +165,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
   clearAlertBadge: () => set({ unreadAlertCount: 0 }),
 }))
 
-// ─── Chat Store ────────────────────────────────────────────────────────
 interface ChatStore {
   messages: ChatMessage[]
   isLoading: boolean
-  currentAgentIndex: number    // which agent step is running
+  currentAgentIndex: number
 
   addMessage: (msg: ChatMessage) => void
   updateMessage: (id: string, partial: Partial<ChatMessage>) => void
@@ -176,8 +182,7 @@ export const useChatStore = create<ChatStore>((set) => ({
   isLoading: false,
   currentAgentIndex: -1,
 
-  addMessage: (msg) =>
-    set((s) => ({ messages: [...s.messages, msg] })),
+  addMessage: (msg) => set((s) => ({ messages: [...s.messages, msg] })),
 
   updateMessage: (id, partial) =>
     set((s) => ({

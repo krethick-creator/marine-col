@@ -11,16 +11,7 @@ import {
 } from '../../services/mockProviders/mockData'
 import { useChatStore, useAppStore } from '../../store'
 import type { ChatMessage, AgentTraceStep } from '../../types'
-
-// ─── Suggestion chips ─────────────────────────────────────────────────
-const suggestions = [
-  'Is it safe to go fishing tomorrow?',
-  'Find the nearest fishing zone.',
-  'Plan a 3-day fishing trip.',
-  'Show dangerous zones near me.',
-  'What are the wave conditions tomorrow morning?',
-  'Check boundary safety for my route.',
-]
+import { useTranslation } from '../../locales'
 
 // ─── Simulated agent processing delay ─────────────────────────────────
 const AGENT_STEP_DELAY_MS = 600
@@ -30,6 +21,7 @@ export default function HomePage() {
   const [input, setInput] = useState('')
   const [agentSteps, setAgentSteps] = useState<AgentTraceStep[]>([])
   const [localAgentIndex, setLocalAgentIndex] = useState(-1)
+  const { t } = useTranslation()
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -52,6 +44,24 @@ export default function HomePage() {
 
   const { user } = useAppStore() // Assuming this is where location is stored
 
+  const translateSeaState = (seaState: string | undefined): string => {
+    if (!seaState) return t('data.unknown')
+    const key = `seaState.${seaState.toLowerCase().replace(/\s+/g, '')}` as any
+    const translated = t(key)
+    return translated !== key ? translated : seaState
+  }
+
+  // ─── Map provider status codes to localized display strings ───────
+  const translateProviderStatus = (status: string | undefined): string => {
+    if (!status) return t('data.unknown')
+    if (status === 'REAL_DATA_SUCCESS') return t('data.justNow')
+    if (status === 'MOCK_DATA') return t('data.mockData')
+    if (status === 'PROVIDER_UNAVAILABLE') return t('data.providerUnavailable')
+    if (status === 'NOT_CONFIGURED') return t('data.notConfigured')
+    if (status === 'REAL_DATA_EMPTY') return t('data.noData')
+    return status
+  }
+
   // --- Real agent processing ---
   const simulateAgents = useCallback(async (query: string) => {
     // 1. Initial UI setup (trace placeholder)
@@ -71,9 +81,9 @@ export default function HomePage() {
     addMessage({
       id: traceId,
       role: 'assistant',
-      content: '__AGENT_TRACE__',
+      content: '', // Pending until synthesis finishes
       timestamp: new Date(),
-      agentTrace: steps,
+      isMockData: false,
     })
 
     // 2. Map backend nodes to UI agent indices
@@ -98,6 +108,7 @@ export default function HomePage() {
     streamChat(
       query,
       user?.location ? { ...user.location, locationName: user.locationName } : undefined,
+      user?.language || 'en',
       (nodeName, executedSteps) => {
         // Find which step this corresponds to
         let targetIndex = nodeMap[nodeName];
@@ -123,16 +134,16 @@ export default function HomePage() {
             summary: riskAssessment.summary || '',
             reasoning: riskAssessment.reasoning || [],
             evidence: [
-              { label: 'Wind Speed', value: riskAssessment.evidence?.windSpeed ? `${riskAssessment.evidence.windSpeed} km/h` : 'Unknown', icon: '💨' },
-              { label: 'Wave Height', value: riskAssessment.evidence?.waveHeight !== null && riskAssessment.evidence?.waveHeight !== undefined ? `${riskAssessment.evidence.waveHeight} m` : 'Unavailable', icon: '🌊' },
-              ...(riskAssessment.evidence?.seaState ? [{ label: 'Sea State', value: riskAssessment.evidence.seaState, icon: '⛵' }] : []),
-              ...(riskAssessment.evidence?.swellPeriod ? [{ label: 'Swell Period', value: `${riskAssessment.evidence.swellPeriod} s`, icon: '⏱️' }] : []),
-              ...(riskAssessment.evidence?.currentSpeed !== null && riskAssessment.evidence?.currentSpeed !== undefined ? [{ label: 'Current Speed', value: `${riskAssessment.evidence.currentSpeed} km/h`, icon: '🧭' }] : []),
+              { label: t('evidence.windSpeed'), value: riskAssessment.evidence?.windSpeed ? `${riskAssessment.evidence.windSpeed} km/h` : t('data.unknown'), icon: '💨' },
+              { label: t('evidence.waveHeight'), value: riskAssessment.evidence?.waveHeight !== null && riskAssessment.evidence?.waveHeight !== undefined ? `${riskAssessment.evidence.waveHeight} m` : t('data.unavailable'), icon: '🌊' },
+              ...(riskAssessment.evidence?.seaState ? [{ label: t('evidence.seaState'), value: translateSeaState(riskAssessment.evidence.seaState), icon: '⛵' }] : []),
+              ...(riskAssessment.evidence?.swellPeriod ? [{ label: t('evidence.swellPeriod'), value: `${riskAssessment.evidence.swellPeriod} s`, icon: '⏱️' }] : []),
+              ...(riskAssessment.evidence?.currentSpeed !== null && riskAssessment.evidence?.currentSpeed !== undefined ? [{ label: t('evidence.currentSpeed'), value: `${riskAssessment.evidence.currentSpeed} km/h`, icon: '🧭' }] : []),
             ],
             dataFreshness: {
-              weather: providerStatuses?.weather?.status === 'REAL_DATA_SUCCESS' ? 'Just now' : providerStatuses?.weather?.status ?? 'Unknown',
-              marine: providerStatuses?.ocean?.status === 'REAL_DATA_SUCCESS' ? 'Just now' : providerStatuses?.ocean?.status ?? 'Unknown',
-              satellite: providerStatuses?.satellite?.status === 'REAL_DATA_SUCCESS' ? 'Just now' : providerStatuses?.satellite?.status ?? 'Unknown',
+              weather: translateProviderStatus(providerStatuses?.weather?.status),
+              marine: translateProviderStatus(providerStatuses?.ocean?.status),
+              satellite: translateProviderStatus(providerStatuses?.satellite?.status),
               updatedAt: new Date()
             },
             isMockData: Object.values(providerStatuses || {}).some((p) => p.status === 'MOCK_DATA')
@@ -211,7 +222,7 @@ export default function HomePage() {
 
       <div className={`chat-input-area ${!hasMessages ? 'centered-input' : ''}`}>
         <div className="chat-input-wrapper">
-          <button className="input-plus-btn" aria-label="Attach file" title="Attach file">
+          <button className="input-plus-btn" aria-label={t('chat.attach')} title={t('chat.attach')}>
             <Plus size={22} />
           </button>
 
@@ -221,23 +232,23 @@ export default function HomePage() {
             value={input}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
-            placeholder="Ask ORCA anything..."
+            placeholder={t('chat.placeholder')}
             rows={1}
             disabled={isLoading}
           />
 
           <div className="chat-input-actions">
-            <button className="input-action-btn" aria-label="Reasoning Agent" title="Reasoning">
+            <button className="input-action-btn" aria-label={t('chat.reasoning')} title={t('chat.reasoning')}>
               <Brain size={18} />
             </button>
-            <button className="input-action-btn" aria-label="Voice input" title="Voice input">
+            <button className="input-action-btn" aria-label={t('chat.voice')} title={t('chat.voice')}>
               <Mic size={18} />
             </button>
             <button
               className="send-btn"
               onClick={handleSubmit}
               disabled={!input.trim() || isLoading}
-              aria-label="Send message"
+              aria-label={t('chat.send')}
             >
               {isLoading
                 ? <div style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />

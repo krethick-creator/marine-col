@@ -94,3 +94,26 @@ export async function getWeatherHistory(lat: number, lon: number, days: number =
   
   return payload.data || [];
 }
+
+export interface GeocodingResult {
+  name: string;
+  lat: number;
+  lon: number;
+  state?: string;
+  country?: string;
+}
+
+export async function searchLocation(query: string): Promise<GeocodingResult[]> {
+  const response = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&addressdetails=1`);
+  if (!response.ok) {
+    throw new Error('Failed to search location');
+  }
+  const data = await response.json();
+  return data.map((item: any) => ({
+    name: item.name || item.display_name.split(',')[0],
+    lat: parseFloat(item.lat),
+    lon: parseFloat(item.lon),
+    state: item.address?.state,
+    country: item.address?.country
+  }));
+}

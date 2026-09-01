@@ -7,6 +7,7 @@ import { getOceanProvider } from '../services/ocean';
 import { getAdvisoryProvider } from '../services/advisories';
 import { getGeospatialProvider } from '../services/geospatial';
 import { getSafeRoute } from './routeAgent';
+// Translation is handled directly by Groq — no external translation provider needed.
 
 function parseLocationsFromQuery(query: string) {
   const q = query.toLowerCase();
@@ -401,10 +402,10 @@ export const geospatialAgent = async (state: typeof OrcaState.State) => {
     console.log('[Geospatial Agent] Provider status:', status);
     console.log('[Geospatial Agent] Completed');
     const updated = markExecuted('geospatialAgent', executedSet);
-    
+
     // Merge boundaries into geospatial data
     const geospatialData = data ? { ...data, nearbyBoundaries: boundaries } : { nearInternationalBoundary: false, nearRestrictedZone: false, nearbyBoundaries: boundaries };
-    
+
     return {
       contextData: {
         geospatial: geospatialData,
@@ -657,8 +658,8 @@ function buildStructuredContext(state: typeof OrcaState.State): string {
   const locStr = location?.name
     ? `${location.name} (lat=${location.lat?.toFixed(4)}, lon=${location.lon?.toFixed(4)})`
     : location
-    ? `lat=${location.lat?.toFixed(4)}, lon=${location.lon?.toFixed(4)}`
-    : 'Unknown location';
+      ? `lat=${location.lat?.toFixed(4)}, lon=${location.lon?.toFixed(4)}`
+      : 'Unknown location';
 
   const lines: string[] = [
     `LOCATION: ${locStr}`,
@@ -739,7 +740,7 @@ function buildStructuredContext(state: typeof OrcaState.State): string {
     if (geospatial.nearbyBoundaries && geospatial.nearbyBoundaries.length > 0) {
       lines.push('Nearby Boundaries:');
       geospatial.nearbyBoundaries.forEach((b: any) => {
-        lines.push(`- ${b.name} (${b.type.replace('_', ' ')}): ${b.distanceMeters > 1000 ? (b.distanceMeters/1000).toFixed(1) + ' km' : b.distanceMeters + ' m'} ${b.direction}. Status: ${b.status}`);
+        lines.push(`- ${b.name} (${b.type.replace('_', ' ')}): ${b.distanceMeters > 1000 ? (b.distanceMeters / 1000).toFixed(1) + ' km' : b.distanceMeters + ' m'} ${b.direction}. Status: ${b.status}`);
       });
     } else if (geospatial.nearbyBoundaries) {
       lines.push('Nearby Boundaries: None found within 50km.');
@@ -809,7 +810,7 @@ Keep the response friendly, short, and conversational.`;
 
   let roleInstructions = '';
   const userRole = state.userRole || 'general';
-  
+
   if (userRole === 'fisherman') {
     roleInstructions = 'You are speaking to a FISHERMAN. Use simple language. Avoid unnecessary scientific terminology. Do NOT give false safety guarantees.';
   } else if (userRole === 'researcher') {
@@ -820,16 +821,43 @@ Keep the response friendly, short, and conversational.`;
     roleInstructions = 'You are speaking to a GENERAL user. Use easy language. Explain technical marine concepts when necessary.';
   }
 
+  const targetLanguage = state.contextData.language || 'en';
+  const languageNames: Record<string, string> = {
+    en: 'English', hi: 'Hindi (हिन्दी)', ta: 'Tamil (தமிழ்)', te: 'Telugu (తెలుగు)',
+    ml: 'Malayalam (മലയാളം)', mr: 'Marathi (मराठी)', gu: 'Gujarati (ગુજરાતી)',
+    kn: 'Kannada (ಕನ್ನಡ)', bn: 'Bengali (বাংলা)', or: 'Odia (ଓଡ଼ିଆ)',
+  };
+  const languageName = languageNames[targetLanguage] || `language code "${targetLanguage}"`;
+
+  const languageInstruction = targetLanguage === 'en'
+    ? 'Write your entire response in English.'
+    : `LANGUAGE REQUIREMENT — THIS IS NON-NEGOTIABLE:
+You MUST write your ENTIRE response in ${languageName}.
+Every single word must be in ${languageName}.
+This includes:
+- The title and all headings
+- Every Markdown table header and every table cell label
+- All explanatory paragraphs
+- All recommendations and safety advice
+- All warnings and disclaimers
+- All evidence and reasoning bullet points
+- All summaries
+- Status descriptions
+Do NOT mix English words into the response.
+Do NOT leave any heading, label, or column name in English.
+Preserve all numbers, units, coordinates, and scientific values exactly as they appear in the context data.`;
+
   const prompt = `You are the ORCA Synthesis Agent. Provide a clear, professional, concise markdown response.
 
 ROLE INSTRUCTIONS:
 ${roleInstructions}
+${languageInstruction}
 
-STRICT RULES:
+STRICT DATA RULES:
 1. Use ONLY the data provided in the Structured Context below. Do NOT hallucinate or invent values.
-2. NEVER use "-" as a placeholder. If a value is unavailable, write "Unavailable" or "No data available".
-3. NEVER use a "Units / Notes" column in tables — only use "Parameter" and "Value" columns.
-4. The value for each row must be the actual data value (e.g., "26.9 °C", "78%", "Unavailable").
+2. NEVER use "-" as a placeholder. If a value is unavailable, write the localized equivalent of "Unavailable".
+3. NEVER use a "Units / Notes" column in tables — only use two columns: the localized parameter name and its value.
+4. The value for each row must be the actual data value (e.g., "26.9 °C", "78%").
 5. Do NOT create empty rows or rows with only dashes.
 6. Do NOT override or modify the Risk Assessment level — it is deterministic.
 7. Use exact numbers from the context. Do not round or estimate differently.
@@ -844,12 +872,18 @@ ${structuredContext}
 
 User Query: "${state.query}"
 
-Provide a professional markdown response covering the relevant data and the risk recommendation.`;
+Provide a professional markdown response covering the relevant data and the risk recommendation.
+Remember: WRITE THE ENTIRE RESPONSE IN ${languageName.toUpperCase()}.`;
 
   const response = await groqModelRouter.invoke([new SystemMessage(prompt)], 'synthesis');
+  const finalResponse = response.response;
+
+  console.log(`[Synthesis Agent] Response language: ${targetLanguage}`);
 
   return {
-    finalResponse: response.response,
+    finalResponse: finalResponse,
+    responseLanguage: targetLanguage,
+    translationFailed: false,
     executedSteps: ['synthesisAgent']
   };
 };

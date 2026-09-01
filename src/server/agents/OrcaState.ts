@@ -42,6 +42,16 @@ export const OrcaState = Annotation.Root({
     default: () => '',
   }),
 
+  responseLanguage: Annotation<string>({
+    reducer: (x, y) => y ?? x,
+    default: () => 'en',
+  }),
+
+  translationFailed: Annotation<boolean>({
+    reducer: (x, y) => y ?? x,
+    default: () => false,
+  }),
+
   // Tracking which steps have executed for SSE reporting
   executedSteps: Annotation<string[]>({
     reducer: (x, y) => x.concat(y),

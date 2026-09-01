@@ -7,12 +7,14 @@ import type { Alert } from '../../types';
 import { useAppStore } from '../../store';
 import { roleConfigs } from '../../config/roleConfig';
 import type { UserRole } from '../../config/roleConfig';
+import { useTranslation, type TranslationKey } from '../../locales';
 
 export default function DashboardPage() {
   const { user: authUser } = useAuthStore();
-  const appUser = useAppStore(state => state.user);
+  const appUser = useAppStore((state) => state.user);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
+  const { t } = useTranslation();
 
   const role: UserRole = (authUser?.role as UserRole) || 'general';
   const config = roleConfigs[role] || roleConfigs.general;
@@ -21,8 +23,9 @@ export default function DashboardPage() {
     const lat = appUser.location?.lat ?? 13.0827;
     const lon = appUser.location?.lon ?? 80.2707;
     setLoading(true);
+
     fetchActiveAlerts(lat, lon)
-      .then(data => {
+      .then((data) => {
         setAlerts(data);
         setLoading(false);
       })
@@ -33,7 +36,7 @@ export default function DashboardPage() {
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
       <ProfileCard authUser={authUser} appUser={appUser} />
       <WeatherCard />
-      <RecentAlertsCard alerts={alerts} loading={loading} />
+      <RecentAlertsCard alerts={alerts} loading={loading} t={t} />
       <div className="glass-card" style={{ padding: 24 }}>
         <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
           <Anchor size={18} color="var(--accent-blue)" /> Fishing Intelligence
@@ -81,7 +84,7 @@ export default function DashboardPage() {
 
   const renderCoastalGuardDashboard = () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <RecentAlertsCard alerts={alerts} loading={loading} />
+      <RecentAlertsCard alerts={alerts} loading={loading} t={t} />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
         <div className="glass-card" style={{ padding: 24, borderTop: '2px solid var(--status-nogo)' }}>
           <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -102,7 +105,7 @@ export default function DashboardPage() {
   const renderGeneralDashboard = () => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
       <WeatherCard />
-      <RecentAlertsCard alerts={alerts} loading={loading} />
+      <RecentAlertsCard alerts={alerts} loading={loading} t={t} />
       <ProfileCard authUser={authUser} appUser={appUser} />
     </div>
   );
@@ -114,15 +117,15 @@ export default function DashboardPage() {
           <h1 className="page-title">{config.dashboardTitle}</h1>
           <p className="page-subtitle">{config.dashboardSubtitle}</p>
         </div>
-        
+
         <div className="glass" style={{ padding: '8px 16px', borderRadius: 99, display: 'flex', alignItems: 'center', gap: 10 }}>
           <div className="live-dot" style={{ background: 'var(--status-go)' }} />
-          <span style={{ fontSize: 13, fontWeight: 600 }}>System Active</span>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>{t('dashboard.systemActive')}</span>
         </div>
       </div>
 
       <div style={{ marginBottom: 24, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-        {config.quickActions.map(qa => (
+        {config.quickActions.map((qa) => (
           <div key={qa.label} className="glass-card" style={{ padding: '8px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: 'var(--accent-blue)' }}>
             {qa.label}
           </div>
@@ -164,19 +167,19 @@ function ProfileCard({ authUser, appUser }: any) {
   );
 }
 
-function RecentAlertsCard({ alerts, loading }: any) {
+function RecentAlertsCard({ alerts, loading, t }: { alerts: Alert[]; loading: boolean; t: (key: TranslationKey) => string }) {
   return (
     <div className="glass-card" style={{ padding: 24, borderTop: '2px solid var(--status-caution)' }}>
       <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-        <ShieldAlert size={18} color="var(--status-caution)" /> Recent Alerts
+        <ShieldAlert size={18} color="var(--status-caution)" /> {t('dashboard.recentAlerts')}
       </h3>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {loading ? (
-          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Loading alerts...</div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('dashboard.loadingAlerts')}</div>
         ) : alerts.length === 0 ? (
-          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>NO DATA AVAILABLE</div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('dashboard.noAlerts')}</div>
         ) : (
-          alerts.slice(0, 3).map((alert: any) => (
+          alerts.slice(0, 3).map((alert: Alert) => (
             <div key={alert.id} style={{ padding: 12, borderRadius: 10, background: alert.severity === 'HIGH' ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)', border: `1px solid ${alert.severity === 'HIGH' ? 'rgba(239,68,68,0.2)' : 'rgba(245,158,11,0.2)'}` }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: alert.severity === 'HIGH' ? '#f87171' : '#fbbf24' }}>{alert.title}</div>
               <div style={{ fontSize: 12, color: 'var(--text-light)', marginTop: 4 }}>{alert.description}</div>

@@ -5,6 +5,7 @@ import { getCachedData } from '../offline/cacheService';
 export async function streamChat(
   query: string,
   location: { lat: number, lon: number; locationName?: string } | undefined,
+  language: string,
   onStep: (stepName: string, executedSteps: string[]) => void,
   onEnd: (finalResponse: string, riskAssessment: any, routePlan: any, providerStatuses: Record<string, { status: string; error?: string }>) => void,
   onError: (error: string) => void
@@ -12,12 +13,12 @@ export async function streamChat(
   const offlineMode = useAppStore.getState().offlineMode;
   if (offlineMode || !navigator.onLine) {
     onStep('offlineAgent', ['detectOfflineStatus', 'queryLocalCache']);
-    
+
     setTimeout(async () => {
       try {
         const lowerQuery = query.toLowerCase();
         let response = '';
-        
+
         // Handle greetings
         if (['hi', 'hello', 'hey'].includes(lowerQuery.trim())) {
           response = "Hello! I am operating in offline mode. I can check your cached weather, wave, alert, and location data. What would you like to know?";
@@ -94,7 +95,7 @@ export async function streamChat(
         else {
           response = "I am currently offline. I can answer questions about your cached **weather**, **waves**, **alerts**, or **location**. Try asking: 'What is the wave height?' or 'Are there any alerts?'";
         }
-        
+
         onEnd(response, null, null, { offline: { status: 'REAL_DATA_SUCCESS' } });
       } catch (err) {
         onEnd("An error occurred while accessing the offline cache.", null, null, {});
@@ -106,11 +107,11 @@ export async function streamChat(
   try {
     const user = useAppStore.getState().user;
     const { user: authUser } = await import('../../store/authStore').then(m => m.useAuthStore.getState());
-    
+
     const res = await fetch('/api/chat/stream', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query, location, userRole: authUser?.role || 'general' })
+      body: JSON.stringify({ query, location, userRole: authUser?.role || 'general', language })
     });
 
     if (!res.ok || !res.body) {

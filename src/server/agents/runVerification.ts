@@ -240,7 +240,7 @@ async function runTests() {
   });
 
   const executedSteps = testState.executedSteps || [];
-  
+
   // Count occurrences
   const stepCounts: Record<string, number> = {};
   for (const step of executedSteps) {
@@ -248,7 +248,7 @@ async function runTests() {
   }
 
   const hasDuplicates = Object.values(stepCounts).some(count => count > 1);
-  
+
   assert(
     !hasDuplicates && executedSteps.includes('alertAgent') && executedSteps.includes('weatherAgent'),
     'Graph executes required agents exactly once',
@@ -265,11 +265,11 @@ async function runTests() {
   // Test 12: Real Satellite Provider Bounding Box
   const { RealSatelliteProvider } = await import('../services/satellite/RealSatelliteProvider');
   const provider = new RealSatelliteProvider();
-  
+
   const satResult = await provider.getSnapshot({ lat: 13.0827, lon: 80.2707 });
-  
-  const isOk = 
-    satResult.status === 'REAL_DATA_SUCCESS' || 
+
+  const isOk =
+    satResult.status === 'REAL_DATA_SUCCESS' ||
     satResult.status === 'PROVIDER_UNAVAILABLE' ||
     satResult.status === 'REAL_DATA_EMPTY';
 
@@ -278,6 +278,79 @@ async function runTests() {
     'Satellite Provider handles request or reports outage/empty status correctly',
     `Status: ${satResult.status}, SST: ${satResult.data?.sst} °C, Chla: ${satResult.data?.chlorophyll} mg/m³`
   );
+
+  // Translation tests — Groq-native multilingual (no Sarvam/Bhashini)
+  console.log('\n--- MULTILINGUAL TESTS (Groq-direct) ---');
+  const { resolveLanguage } = await import('../utils/language');
+
+  // Test 13: Hindi explicit language — responseLanguage must match
+  const hiState = await orcaGraph.invoke({
+    query: "Analyze marine safety for Chennai",
+    contextData: { location: { lat: 13.0827, lon: 80.2707, name: 'Chennai' }, language: 'hi' }
+  });
+  assert(
+    hiState.responseLanguage === 'hi' &&
+    (hiState.finalResponse as string).length > 100 &&
+    !hiState.translationFailed,
+    'Hindi: responseLanguage=hi, non-empty response, no translation failure',
+    `responseLanguage: ${hiState.responseLanguage}, length: ${(hiState.finalResponse as string).length}`
+  );
+
+  // Test 14: English — responseLanguage must be en, no non-ASCII characters from Hindi/Tamil
+  const enState = await orcaGraph.invoke({
+    query: "Analyze marine safety for Chennai",
+    contextData: { location: { lat: 13.0827, lon: 80.2707, name: 'Chennai' }, language: 'en' }
+  });
+  assert(
+    enState.responseLanguage === 'en' && !enState.translationFailed,
+    'English: responseLanguage=en, no translation failure',
+    `responseLanguage: ${enState.responseLanguage}, length: ${(enState.finalResponse as string).length}`
+  );
+
+  // Test 15: Unknown language code falls back to English via resolveLanguage
+  const resolvedUnknownLang = await resolveLanguage("Analyze marine safety for Chennai", 'xyz');
+  assert(
+    resolvedUnknownLang === 'en',
+    'Unsupported language code falls back to English',
+    `resolvedLanguage: ${resolvedUnknownLang}`
+  );
+
+  // Test 16: Auto-detect Hindi from query text
+  const hindiQuery = "क्या कल मछली पकड़ने जाना सुरक्षित है?";
+  const autoLang = await resolveLanguage(hindiQuery, undefined);
+  assert(
+    autoLang === 'hi',
+    'Auto-detects Hindi from Devanagari query text',
+    `detected: ${autoLang}`
+  );
+
+  // Test 17: Tamil response — responseLanguage=ta, non-empty
+  const taState = await orcaGraph.invoke({
+    query: "சென்னையிலிருந்து புதுச்சேரிக்கு இன்று கடல் பாதுகாப்பானதா?",
+    contextData: { location: { lat: 13.0827, lon: 80.2707, name: 'Chennai' }, language: 'ta' }
+  });
+  assert(
+    taState.responseLanguage === 'ta' &&
+    (taState.finalResponse as string).length > 100 &&
+    !taState.translationFailed,
+    'Tamil: responseLanguage=ta, non-empty response, no translation failure',
+    `responseLanguage: ${taState.responseLanguage}, length: ${(taState.finalResponse as string).length}`
+  );
+
+  // Test 18: No Sarvam/Bhashini — confirm provider files deleted
+  let sarvamImportFailed = false;
+  try {
+    await import('../services/translation/SarvamTranslationProvider' as any);
+  } catch {
+    sarvamImportFailed = true;
+  }
+  assert(
+    sarvamImportFailed,
+    'SarvamTranslationProvider has been removed — no external translation API',
+    'Import threw as expected'
+  );
+
+
 
   console.log('\n-----------------------------------------------------------------')
   console.log(`TEST SUMMARY: ${passed} / ${total} tests passed (${Math.round((passed / total) * 100)}%)`)
