@@ -1,8 +1,10 @@
+import type { UserRole } from '../../config/roleConfig';
+
 export interface AuthUser {
   id: string;
   name: string;
   email: string;
-  role: string;
+  role: UserRole;
   location?: string;
 }
 
@@ -32,7 +34,7 @@ class AuthService {
             id: 'u-1',
             name: 'Ramesh K.',
             email: 'demo@orca.gov',
-            role: 'Fisherman',
+            role: 'fisherman',
             location: 'Chennai Coast'
           },
           token: 'mock-jwt-token-abc123'
@@ -90,7 +92,7 @@ class AuthService {
           id: 'u-1',
           name: 'Ramesh K.',
           email: 'demo@orca.gov',
-          role: 'Fisherman',
+          role: 'fisherman',
           location: 'Chennai Coast'
         };
       }

@@ -4,6 +4,9 @@ import OceanBackground from './components/layout/OceanBackground'
 import Sidebar from './components/layout/Sidebar'
 import TopBar from './components/layout/TopBar'
 import { useAuthStore } from './store/authStore'
+import { syncOfflineData } from './services/offline/cacheService';
+import { roleConfigs } from './config/roleConfig';
+import type { UserRole } from './config/roleConfig';
 
 // Auth Pages
 import Login from './pages/Auth/Login'
@@ -71,6 +74,8 @@ export default function App() {
       setLastSyncTime(new Date());
       if (user?.location?.lat && user?.location?.lon) {
         fetchWeather(user.location.lat, user.location.lon);
+        const role: UserRole = (user.role as UserRole) || 'general';
+        syncOfflineData(roleConfigs[role], user.location.lat, user.location.lon);
       }
     };
     
@@ -85,7 +90,7 @@ export default function App() {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [setOfflineMode, setLastSyncTime, user?.location?.lat, user?.location?.lon, fetchWeather]);
+  }, [setOfflineMode, setLastSyncTime, user?.location?.lat, user?.location?.lon, fetchWeather, user?.role]);
 
   // Fetch weather on mount and every 15 minutes
   useEffect(() => {

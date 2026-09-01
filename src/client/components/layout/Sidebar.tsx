@@ -7,25 +7,47 @@ import {
 import OrcaLogo from '../ui/OrcaLogo'
 import { useAppStore } from '../../store'
 import { useAuthStore } from '../../store/authStore'
+import { roleConfigs } from '../../config/roleConfig'
+import type { UserRole } from '../../config/roleConfig'
 
-const navItems = [
-  { to: '/home',      icon: Home,          label: 'Home',             end: true },
-  { to: '/map',       icon: Map,           label: 'Live Map' },
-  { to: '/planner',   icon: Calendar,      label: 'Trip Planner' },
-  { to: '/weather',   icon: Cloud,         label: 'Weather & Ocean' },
-  { to: '/climate',   icon: Compass,       label: 'Climate Patterns' },
-  { to: '/reports',   icon: BarChart2,     label: 'Reports & Analytics' },
-  { to: '/fishing',   icon: Fish,          label: 'Fishing Zones' },
-  { to: '/alerts',    icon: AlertTriangle, label: 'Alerts & Warnings', badge: true },
-  { to: '/boundaries',icon: Flag,          label: 'Boundaries' },
-  { to: '/community', icon: Users,         label: 'Community' },
-  { to: '/sos',       icon: LifeBuoy,      label: 'SOS & Safety' },
+const allNavItems = [
+  { id: 'home', to: '/home', icon: Home, label: 'Home', end: true },
+  { id: 'research_dashboard', to: '/home', icon: Home, label: 'Research Dashboard', end: true },
+  { id: 'operations_dashboard', to: '/home', icon: Home, label: 'Operations Dashboard', end: true },
+  { id: 'live_marine_map', to: '/map', icon: Map, label: 'Live Marine Map' },
+  { id: 'marine_map', to: '/map', icon: Map, label: 'Marine Map' },
+  { id: 'gis_map', to: '/map', icon: Map, label: 'GIS Map' },
+  { id: 'weather', to: '/weather', icon: Cloud, label: 'Weather' },
+  { id: 'ocean', to: '/weather', icon: Cloud, label: 'Ocean' },
+  { id: 'sea_conditions', to: '/weather', icon: Cloud, label: 'Sea Conditions' },
+  { id: 'fishing_intelligence', to: '/fishing', icon: Fish, label: 'Fishing Intelligence' },
+  { id: 'marine_boundaries', to: '/boundaries', icon: Flag, label: 'Marine Boundaries' },
+  { id: 'boundaries', to: '/boundaries', icon: Flag, label: 'Boundaries' },
+  { id: 'navigation', to: '/map', icon: Compass, label: 'Navigation' },
+  { id: 'alerts', to: '/alerts', icon: AlertTriangle, label: 'Alerts', badge: true },
+  { id: 'sos', to: '/sos', icon: LifeBuoy, label: 'SOS' },
+  { id: 'sms', to: '/settings', icon: Settings, label: 'SMS' },
+  { id: 'satellite_data', to: '/weather', icon: Cloud, label: 'Satellite / EO Data' },
+  { id: 'ocean_data', to: '/weather', icon: Cloud, label: 'Ocean Data' },
+  { id: 'analysis', to: '/reports', icon: BarChart2, label: 'Analysis' },
+  { id: 'historical_climate', to: '/climate', icon: Compass, label: 'Historical Climate' },
+  { id: 'reports', to: '/reports', icon: BarChart2, label: 'Reports' },
+  { id: 'ai_research_assistant', to: '/chat', icon: Users, label: 'AI Research Assistant' },
+  { id: 'incidents', to: '/community', icon: AlertTriangle, label: 'Incidents' },
+  { id: 'disaster_monitoring', to: '/alerts', icon: AlertTriangle, label: 'Disaster Monitoring' },
+  { id: 'learn', to: '/community', icon: Users, label: 'Learn' },
+  { id: 'orca_ai', to: '/chat', icon: Users, label: 'ORCA AI' },
+  { id: 'community', to: '/community', icon: Users, label: 'Community' },
 ]
 
 export default function Sidebar() {
   const { currentWeather, weatherLoading, weatherError, offlineMode, toggleOfflineMode, unreadAlertCount, user: appUser } = useAppStore()
   const { user } = useAuthStore()
   const location = useLocation()
+  
+  const role: UserRole = (user?.role as UserRole) || 'general'
+  const config = roleConfigs[role] || roleConfigs.general
+  const navItems = allNavItems.filter(item => config.features.includes(item.id))
 
   return (
     <aside className="sidebar">
@@ -46,7 +68,7 @@ export default function Sidebar() {
       <div className="nav-section-label">Navigation</div>
 
       {/* Nav items */}
-      {navItems.map(({ to, icon: Icon, label, badge, end }) => {
+      {navItems.map(({ id, to, icon: Icon, label, badge, end }) => {
         const isActive = end
           ? location.pathname === to
           : location.pathname.startsWith(to)
@@ -54,7 +76,7 @@ export default function Sidebar() {
 
         return (
           <NavLink
-            key={to}
+            key={id}
             to={to}
             end={end}
             className={`nav-item ${isActive ? 'active' : ''}`}

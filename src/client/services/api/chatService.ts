@@ -104,10 +104,13 @@ export async function streamChat(
   }
 
   try {
+    const user = useAppStore.getState().user;
+    const { user: authUser } = await import('../../store/authStore').then(m => m.useAuthStore.getState());
+    
     const res = await fetch('/api/chat/stream', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query, location })
+      body: JSON.stringify({ query, location, userRole: authUser?.role || 'general' })
     });
 
     if (!res.ok || !res.body) {

@@ -57,3 +57,15 @@ export async function getCachedData(type: string, lat: number, lon: number) {
     return null;
   }
 }
+
+export async function syncOfflineData(roleConfig: any, lat: number, lon: number) {
+  if (!roleConfig?.offlinePriority) return;
+  console.log(`[Cache Service] Syncing offline data with priority: ${roleConfig.offlinePriority.join(', ')}`);
+  
+  // This is a placeholder for the actual sync logic based on role priority.
+  // We would typically iterate through roleConfig.offlinePriority and fetch/cache each module.
+  for (const module of roleConfig.offlinePriority) {
+    console.log(`[Cache Service] Fetching and caching: ${module}`);
+    // Await fetch for module and cacheData()
+  }
+}

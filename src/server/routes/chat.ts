@@ -4,7 +4,7 @@ import { orcaGraph } from '../agents/OrcaGraph';
 const router = Router();
 
 router.post('/stream', async (req, res) => {
-  const { query, location } = req.body;
+  const { query, location, userRole } = req.body;
 
   if (!query) {
     return res.status(400).json({ error: 'Query is required' });
@@ -18,7 +18,7 @@ router.post('/stream', async (req, res) => {
   });
 
   try {
-    const initialState: any = { query };
+    const initialState: any = { query, userRole: userRole || 'general' };
     if (location && typeof location.lat === 'number' && typeof location.lon === 'number') {
       initialState.contextData = { location };
     }

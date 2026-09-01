@@ -6,6 +6,9 @@ export const OrcaState = Annotation.Root({
   // The original user query
   query: Annotation<string>(),
 
+  // The role of the user
+  userRole: Annotation<string>(),
+
   // Array of conversation messages
   messages: Annotation<BaseMessage[]>({
     reducer: (x, y) => x.concat(y),

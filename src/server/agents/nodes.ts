@@ -764,7 +764,22 @@ export const synthesisAgent = async (state: typeof OrcaState.State) => {
 
   // ── Conversational path — no marine data report ──────────────────────────────
   if (intent === 'conversational') {
-    const conversationalPrompt = `You are ORCA, a professional marine intelligence assistant for fishermen and marine operators in Indian coastal waters.
+    let roleInstructions = '';
+    const userRole = state.userRole || 'general';
+    if (userRole === 'fisherman') {
+      roleInstructions = 'You are speaking to a FISHERMAN. Use simple language. Avoid unnecessary scientific terminology.';
+    } else if (userRole === 'researcher') {
+      roleInstructions = 'You are speaking to a RESEARCHER. Use scientific terminology when explaining capabilities.';
+    } else if (userRole === 'coastal_guard') {
+      roleInstructions = 'You are speaking to a COASTAL GUARD. Use concise operational language.';
+    } else {
+      roleInstructions = 'You are speaking to a GENERAL user. Use easy language.';
+    }
+
+    const conversationalPrompt = `You are ORCA, a professional marine intelligence assistant for Indian coastal waters.
+
+ROLE INSTRUCTIONS:
+${roleInstructions}
 
 The user sent a conversational message: "${state.query}"
 
@@ -792,7 +807,23 @@ Keep the response friendly, short, and conversational.`;
 
   const locationName = state.contextData.location?.name || 'the requested location';
 
-  const prompt = `You are the ORCA Synthesis Agent. Provide a clear, professional, concise markdown response to a fisherman or marine operator.
+  let roleInstructions = '';
+  const userRole = state.userRole || 'general';
+  
+  if (userRole === 'fisherman') {
+    roleInstructions = 'You are speaking to a FISHERMAN. Use simple language. Avoid unnecessary scientific terminology. Do NOT give false safety guarantees.';
+  } else if (userRole === 'researcher') {
+    roleInstructions = 'You are speaking to a RESEARCHER. Use scientific terminology. Provide numerical values, units, relevant parameters, trends, comparisons, and scientific context. Do not oversimplify.';
+  } else if (userRole === 'coastal_guard') {
+    roleInstructions = 'You are speaking to a COASTAL GUARD. Use concise operational language. Prioritize severity, location, time, incident, and recommended operational attention.';
+  } else {
+    roleInstructions = 'You are speaking to a GENERAL user. Use easy language. Explain technical marine concepts when necessary.';
+  }
+
+  const prompt = `You are the ORCA Synthesis Agent. Provide a clear, professional, concise markdown response.
+
+ROLE INSTRUCTIONS:
+${roleInstructions}
 
 STRICT RULES:
 1. Use ONLY the data provided in the Structured Context below. Do NOT hallucinate or invent values.
