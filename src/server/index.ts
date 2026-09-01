@@ -11,6 +11,7 @@ import authRoutes from './routes/auth'
 import alertsRoutes from './routes/alerts'
 import boundariesRoutes from './routes/boundaries'
 import communityRoutes from './routes/community'
+import communitiesRoutes from './routes/communities'
 import fishingRoutes from './routes/fishing'
 import geospatialRoutes from './routes/geospatial'
 import oceanRoutes from './routes/ocean'
@@ -32,7 +33,10 @@ app.use('/api/chat', chatRoutes)
 app.use('/api/auth', authRoutes)
 app.use('/api/alerts', alertsRoutes)
 app.use('/api/boundaries', boundariesRoutes)
+
 app.use('/api/community', communityRoutes)
+app.use('/api/communities', communitiesRoutes)
+
 app.use('/api/fishing', fishingRoutes)
 app.use('/api/geospatial', geospatialRoutes)
 app.use('/api/ocean', oceanRoutes)
@@ -47,12 +51,12 @@ app.get('/api/health', (req, res) => {
 app.use(errorHandler)
 
 process.on('uncaughtException', (err) => {
-  console.error('[server] Uncaught Exception:', err);
-});
+  console.error('[server] Uncaught Exception:', err)
+})
 
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('[server] Unhandled Rejection at:', promise, 'reason:', reason);
-});
+  console.error('[server] Unhandled Rejection at:', promise, 'reason:', reason)
+})
 
 import { groqModelRouter } from './llm/GroqModelRouter'
 
@@ -62,5 +66,5 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 })
 
 server.on('error', (err) => {
-  console.error('[server] Server error:', err);
-});
+  console.error('[server] Server error:', err)
+})

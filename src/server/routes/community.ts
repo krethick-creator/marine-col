@@ -9,7 +9,7 @@ import type { ApiSuccess, CommunityPost, PostType } from '../types'
 const router = Router()
 
 // In-memory store for Phase 2. Phase 3 replaces with PostgreSQL.
-const posts: CommunityPost[] = [
+export const posts: CommunityPost[] = [
   {
     id: uuidv4(),
     userId: 'demo-u1',
